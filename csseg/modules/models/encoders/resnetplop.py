@@ -59,15 +59,17 @@ class BottleneckPLOP(Bottleneck):
 
 '''ResNetPLOP'''
 class ResNetPLOP(ResNet):
-    def __init__(self, in_channels=3, base_channels=64, stem_channels=64, depth=101, outstride=16, contract_dilation=True, deep_stem=True, 
-                 out_indices=(0, 1, 2, 3), use_avg_for_downsample=False, norm_cfg=None, act_cfg={'type': 'ReLU', 'inplace': True}, 
-                 pretrained=True, pretrained_model_path=None, user_defined_block=None):
+    def __init__(self, in_channels=3, base_channels=64, stem_channels=64, depth=101, outstride=16, contract_dilation=False, deep_stem=False, 
+                 out_indices=(0, 1, 2, 3), use_avg_for_downsample=False, norm_cfg={'type': 'InPlaceABNSync', 'activation': 'identity'}, 
+                 act_cfg={'type': 'LeakyReLU', 'inplace': True, 'negative_slope': 0.01},  pretrained=True, pretrained_model_path=None, 
+                 user_defined_block=None, use_inplaceabn_style=True):
         if user_defined_block is None:
             user_defined_block = BasicBlockPLOP if depth in [18, 34] else BottleneckPLOP
         super(ResNetPLOP, self).__init__(
             in_channels=in_channels, base_channels=base_channels, stem_channels=stem_channels, depth=depth, outstride=outstride, 
             contract_dilation=contract_dilation, deep_stem=deep_stem, out_indices=out_indices, use_avg_for_downsample=use_avg_for_downsample, 
             norm_cfg=norm_cfg, act_cfg=act_cfg, pretrained=pretrained, pretrained_model_path=pretrained_model_path, user_defined_block=user_defined_block,
+            use_inplaceabn_style=use_inplaceabn_style,
         )
     '''forward'''
     def forward(self, x):

@@ -14,8 +14,10 @@ def BuildActivation(act_cfg):
     act_cfg = copy.deepcopy(act_cfg)
     # supported activations
     supported_activations = {
+        'Tanh': nn.Tanh,
         'ReLU': nn.ReLU,
         'GELU': nn.GELU,
+        'SELU': nn.SELU,
         'ReLU6': nn.ReLU6,
         'PReLU': nn.PReLU,
         'Sigmoid': nn.Sigmoid,

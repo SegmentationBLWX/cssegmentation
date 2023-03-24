@@ -5,6 +5,7 @@ Author:
     Zhenchao Jin
 '''
 import os
+import re
 import torch
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
@@ -21,6 +22,9 @@ model_urls = {
     'resnet18stem': 'https://download.openmmlab.com/pretrain/third_party/resnet18_v1c-b5776b93.pth',
     'resnet50stem': 'https://download.openmmlab.com/pretrain/third_party/resnet50_v1c-2cccc1ad.pth',
     'resnet101stem': 'https://download.openmmlab.com/pretrain/third_party/resnet101_v1c-e67eebb6.pth',
+    'resnet34inplaceabn': 'https://github.com/SegmentationBLWX/modelstore/releases/download/csseg_pretrained/resnet34_inplaceabn.pth',
+    'resnet50inplaceabn': 'https://github.com/SegmentationBLWX/modelstore/releases/download/csseg_pretrained/resnet50_inplaceabn.pth',
+    'resnet101inplaceabn': 'https://github.com/SegmentationBLWX/modelstore/releases/download/csseg_pretrained/resnet101_inplaceabn.pth',
 }
 
 
@@ -96,9 +100,10 @@ class ResNet(nn.Module):
     }
     def __init__(self, in_channels=3, base_channels=64, stem_channels=64, depth=101, outstride=16, contract_dilation=True, deep_stem=True, 
                  out_indices=(0, 1, 2, 3), use_avg_for_downsample=False, norm_cfg=None, act_cfg={'type': 'ReLU', 'inplace': True}, 
-                 pretrained=True, pretrained_model_path=None, user_defined_block=None):
+                 pretrained=True, pretrained_model_path=None, user_defined_block=None, use_inplaceabn_style=False):
         super(ResNet, self).__init__()
         self.inplanes = stem_channels
+        self.use_inplaceabn_style = use_inplaceabn_style
         # set out_indices
         self.out_indices = out_indices
         # parse depth settings
@@ -190,15 +195,18 @@ class ResNet(nn.Module):
                 state_dict = ckpt['state_dict']
             else: 
                 state_dict = ckpt
-            self.load_state_dict(state_dict, strict=False)
+            self.load_state_dict(self.convertabnckpt(state_dict) if use_inplaceabn_style else state_dict, strict=False)
         elif pretrained:
-            key = f'resnet{depth}' + ('stem' if deep_stem else '')
+            if use_inplaceabn_style:
+                key = f'resnet{depth}inplaceabn'
+            else:
+                key = f'resnet{depth}' + ('stem' if deep_stem else '')
             ckpt = model_zoo.load_url(model_urls[key], map_location='cpu')
             if 'state_dict' in ckpt: 
                 state_dict = ckpt['state_dict']
             else: 
                 state_dict = ckpt
-            self.load_state_dict(state_dict, strict=False)
+            self.load_state_dict(self.convertabnckpt(state_dict) if use_inplaceabn_style else state_dict, strict=False)
     '''makelayer'''
     def makelayer(self, block, inplanes, planes, num_blocks, stride=1, dilation=1, contract_dilation=True, use_avg_for_downsample=False, norm_cfg=None, act_cfg=None):
         downsample = None
@@ -219,9 +227,44 @@ class ResNet(nn.Module):
         layers = []
         layers.append(block(inplanes, planes, stride=stride, dilation=dilations[0], downsample=downsample, norm_cfg=norm_cfg, act_cfg=act_cfg))
         self.inplanes = planes * block.expansion
-        for i in range(1, num_blocks): 
-            layers.append(block(planes * block.expansion, planes, stride=1, dilation=dilations[i], norm_cfg=norm_cfg, act_cfg=act_cfg))
+        for idx in range(1, num_blocks):
+            if self.use_inplaceabn_style and (idx == num_blocks - 1):
+                act_cfg_copy = act_cfg.copy()
+                act_cfg_copy['inplace'] = False
+                layers.append(block(planes * block.expansion, planes, stride=1, dilation=dilations[idx], norm_cfg=norm_cfg, act_cfg=act_cfg_copy))
+            else:
+                layers.append(block(planes * block.expansion, planes, stride=1, dilation=dilations[idx], norm_cfg=norm_cfg, act_cfg=act_cfg))
         return nn.Sequential(*layers)
+    '''convert in-place abn official checkpoints'''
+    def convertabnckpt(self, state_dict):
+        for key in list(state_dict.keys()):
+            state_dict[key[7:]] = state_dict.pop(key)
+        converted_state_dict = dict()
+        for key in list(state_dict.keys()):
+            if 'mod1' in key:
+                converted_state_dict[key[5:]] = state_dict.pop(key)
+            else:
+                converted_key = key.replace('convs.', '')
+                for idx in range(2, 6):
+                    converted_key = converted_key.replace(f'mod{idx}', f'layer{idx-1}')
+                idx = re.findall(r'\.block(.*?)\.', converted_key)
+                if len(idx) > 0:
+                    idx = int(idx[0])
+                    converted_key = converted_key.replace(f'block{idx}', f'{idx-1}')
+                for idx in range(1, 5):
+                    oldkeys_to_keys = {
+                        f'layer{idx}.0.proj_conv.weight': f'layer{idx}.0.downsample.0.weight', 
+                        f'layer{idx}.0.proj_bn.weight': f'layer{idx}.0.downsample.1.weight', 
+                        f'layer{idx}.0.proj_bn.bias': f'layer{idx}.0.downsample.1.bias', 
+                        f'layer{idx}.0.proj_bn.running_mean': f'layer{idx}.0.downsample.1.running_mean', 
+                        f'layer{idx}.0.proj_bn.running_var': f'layer{idx}.0.downsample.1.running_var',
+                    }
+                    if converted_key in oldkeys_to_keys:
+                        converted_key = oldkeys_to_keys[converted_key]
+                        break
+                assert converted_key not in converted_state_dict
+                converted_state_dict[converted_key] = state_dict.pop(key)
+        return converted_state_dict
     '''forward'''
     def forward(self, x):
         if self.deep_stem:

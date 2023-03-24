@@ -1,3 +1,3 @@
 '''initialize'''
-from .activation import BuildActivation
 from .normalization import BuildNormalization
+from .activation import BuildActivation, actname2torchactname

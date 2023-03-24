@@ -7,7 +7,7 @@ Author:
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..encoders import BuildActivation, BuildNormalization
+from ..encoders import BuildActivation, BuildNormalization, actname2torchactname
 
 
 '''ASPPHead'''
@@ -51,6 +51,24 @@ class ASPPHead(nn.Module):
             BuildNormalization(placeholder=out_channels, norm_cfg=norm_cfg),
             BuildActivation(act_cfg=act_cfg),
         )
+        # initialize parameters'''
+        if hasattr(self.bottleneck_bn[0], 'activation'):
+            self.initparams(self.bottleneck_bn[0].activation, self.bottleneck_bn[0].activation_param)
+        else:
+            self.initparams(actname2torchactname(act_cfg['type']), act_cfg.get('negative_slope'))
+    '''initialize parameters'''
+    def initparams(self, nonlinearity, param=None):
+        gain = nn.init.calculate_gain(nonlinearity, param)
+        for module in self.modules():
+            if isinstance(module, nn.Conv2d):
+                nn.init.xavier_normal_(module.weight.data, gain)
+                if hasattr(module, 'bias') and module.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(module, nn.BatchNorm2d):
+                if hasattr(module, 'weight') and module.weight is not None:
+                    nn.init.constant_(m.weight, 1)
+                if hasattr(module, 'bias') and module.bias is not None:
+                    nn.init.constant_(m.bias, 0)
     '''forward'''
     def forward(self, x):
         input_size = x.shape
