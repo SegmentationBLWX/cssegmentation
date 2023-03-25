@@ -31,13 +31,16 @@ model_urls = {
 '''BasicBlock'''
 class BasicBlock(nn.Module):
     expansion = 1
-    def __init__(self, inplanes, planes, stride=1, dilation=1, downsample=None, norm_cfg=None, act_cfg=None):
+    def __init__(self, inplanes, planes, stride=1, dilation=1, downsample=None, norm_cfg=None, act_cfg=None, shortcut_norm_cfg=None, shortcut_act_cfg=None):
         super(BasicBlock, self).__init__()
+        if shortcut_norm_cfg is None: shortcut_norm_cfg = norm_cfg
+        if shortcut_act_cfg is None: shortcut_act_cfg = act_cfg
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=3, stride=stride, padding=dilation, dilation=dilation, bias=False)
         self.bn1 = BuildNormalization(placeholder=planes, norm_cfg=norm_cfg)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn2 = BuildNormalization(placeholder=planes, norm_cfg=norm_cfg)
+        self.bn2 = BuildNormalization(placeholder=planes, norm_cfg=shortcut_norm_cfg)
         self.relu = BuildActivation(act_cfg)
+        self.shortcut_relu = BuildActivation(shortcut_act_cfg)
         self.downsample = downsample
         self.stride = stride
         self.dilation = dilation
@@ -51,23 +54,26 @@ class BasicBlock(nn.Module):
         out = self.conv2(out)
         out = self.bn2(out)
         if self.downsample is not None: identity = self.downsample(x)
-        out += identity
-        out = self.relu(out)
+        out = out + identity
+        out = self.shortcut_relu(out)
         return out
 
 
 '''Bottleneck'''
 class Bottleneck(nn.Module):
     expansion = 4
-    def __init__(self, inplanes, planes, stride=1, dilation=1, downsample=None, norm_cfg=None, act_cfg=None):
+    def __init__(self, inplanes, planes, stride=1, dilation=1, downsample=None, norm_cfg=None, act_cfg=None, shortcut_norm_cfg=None, shortcut_act_cfg=None):
         super(Bottleneck, self).__init__()
+        if shortcut_norm_cfg is None: shortcut_norm_cfg = norm_cfg
+        if shortcut_act_cfg is None: shortcut_act_cfg = act_cfg
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, stride=1, padding=0, bias=False)
         self.bn1 = BuildNormalization(placeholder=planes, norm_cfg=norm_cfg)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride, padding=dilation, dilation=dilation, bias=False)
         self.bn2 = BuildNormalization(placeholder=planes, norm_cfg=norm_cfg)
         self.conv3 = nn.Conv2d(planes, planes * self.expansion, kernel_size=1, stride=1, padding=0, bias=False)
-        self.bn3 = BuildNormalization(placeholder=planes * self.expansion, norm_cfg=norm_cfg)
+        self.bn3 = BuildNormalization(placeholder=planes * self.expansion, norm_cfg=shortcut_norm_cfg)
         self.relu = BuildActivation(act_cfg)
+        self.shortcut_relu = BuildActivation(shortcut_act_cfg)
         self.downsample = downsample
         self.stride = stride
         self.dilation = dilation
@@ -84,8 +90,8 @@ class Bottleneck(nn.Module):
         out = self.conv3(out)
         out = self.bn3(out)
         if self.downsample is not None: identity = self.downsample(x)
-        out += identity
-        out = self.relu(out)
+        out = out + identity
+        out = self.shortcut_relu(out)
         return out
 
 
@@ -99,7 +105,7 @@ class ResNet(nn.Module):
         152: (Bottleneck, (3, 8, 36, 3))
     }
     def __init__(self, in_channels=3, base_channels=64, stem_channels=64, depth=101, outstride=16, contract_dilation=True, deep_stem=True, 
-                 out_indices=(0, 1, 2, 3), use_avg_for_downsample=False, norm_cfg=None, act_cfg={'type': 'ReLU', 'inplace': True}, 
+                 out_indices=(0, 1, 2, 3), use_avg_for_downsample=False, norm_cfg={'type': 'BatchNorm2d'}, act_cfg={'type': 'ReLU', 'inplace': True}, 
                  pretrained=True, pretrained_model_path=None, user_defined_block=None, use_inplaceabn_style=False):
         super(ResNet, self).__init__()
         self.inplanes = stem_channels
@@ -209,6 +215,11 @@ class ResNet(nn.Module):
             self.load_state_dict(self.convertabnckpt(state_dict) if use_inplaceabn_style else state_dict, strict=False)
     '''makelayer'''
     def makelayer(self, block, inplanes, planes, num_blocks, stride=1, dilation=1, contract_dilation=True, use_avg_for_downsample=False, norm_cfg=None, act_cfg=None):
+        shortcut_norm_cfg, shortcut_act_cfg = norm_cfg, act_cfg
+        if self.use_inplaceabn_style:
+            assert act_cfg is None
+            shortcut_act_cfg = {'type': 'LeakyReLU', 'inplace': True, 'negative_slope': 0.01}
+            shortcut_norm_cfg = {'type': 'InPlaceABNSync', 'activation': 'identity'}
         downsample = None
         dilations = [dilation] * num_blocks
         if contract_dilation and dilation > 1: dilations[0] = dilation // 2
@@ -217,23 +228,28 @@ class ResNet(nn.Module):
                 downsample = nn.Sequential(
                     nn.AvgPool2d(kernel_size=stride, stride=stride, ceil_mode=True, count_include_pad=False),
                     nn.Conv2d(inplanes, planes * block.expansion, kernel_size=1, stride=1, padding=0, bias=False),
-                    BuildNormalization(placeholder=planes * block.expansion, norm_cfg=norm_cfg)
+                    BuildNormalization(placeholder=planes * block.expansion, norm_cfg=shortcut_norm_cfg)
                 )
             else:
                 downsample = nn.Sequential(
                     nn.Conv2d(inplanes, planes * block.expansion, kernel_size=1, stride=stride, padding=0, bias=False),
-                    BuildNormalization(placeholder=planes * block.expansion, norm_cfg=norm_cfg)
+                    BuildNormalization(placeholder=planes * block.expansion, norm_cfg=shortcut_norm_cfg)
                 )
         layers = []
-        layers.append(block(inplanes, planes, stride=stride, dilation=dilations[0], downsample=downsample, norm_cfg=norm_cfg, act_cfg=act_cfg))
+        layers.append(block(
+            inplanes, planes, stride=stride, dilation=dilations[0], downsample=downsample, norm_cfg=norm_cfg, act_cfg=act_cfg,
+            shortcut_norm_cfg=shortcut_norm_cfg, shortcut_act_cfg=shortcut_act_cfg,
+        ))
         self.inplanes = planes * block.expansion
         for idx in range(1, num_blocks):
             if self.use_inplaceabn_style and (idx == num_blocks - 1):
-                act_cfg_copy = act_cfg.copy()
-                act_cfg_copy['inplace'] = False
-                layers.append(block(planes * block.expansion, planes, stride=1, dilation=dilations[idx], norm_cfg=norm_cfg, act_cfg=act_cfg_copy))
-            else:
-                layers.append(block(planes * block.expansion, planes, stride=1, dilation=dilations[idx], norm_cfg=norm_cfg, act_cfg=act_cfg))
+                shortcut_act_cfg['inplace'] = False
+            elif shortcut_act_cfg is not None:
+                shortcut_act_cfg['inplace'] = True
+            layers.append(block(
+                planes * block.expansion, planes, stride=1, dilation=dilations[idx], norm_cfg=norm_cfg, act_cfg=act_cfg, 
+                shortcut_norm_cfg=shortcut_norm_cfg, shortcut_act_cfg=shortcut_act_cfg,
+            ))
         return nn.Sequential(*layers)
     '''convert in-place abn official checkpoints'''
     def convertabnckpt(self, state_dict):

@@ -10,10 +10,10 @@ from .resnet import ResNet, BasicBlock, Bottleneck
 '''BasicBlockPLOP'''
 class BasicBlockPLOP(BasicBlock):
     expansion = 1
-    def __init__(self, inplanes, planes, stride=1, dilation=1, downsample=None, norm_cfg=None, act_cfg=None):
+    def __init__(self, inplanes, planes, stride=1, dilation=1, downsample=None, norm_cfg=None, act_cfg=None, shortcut_norm_cfg=None, shortcut_act_cfg=None):
         super(BasicBlockPLOP, self).__init__(
             inplanes=inplanes, planes=planes, stride=stride, dilation=dilation, downsample=downsample, 
-            norm_cfg=norm_cfg, act_cfg=act_cfg,
+            norm_cfg=norm_cfg, act_cfg=act_cfg, shortcut_norm_cfg=shortcut_norm_cfg, shortcut_act_cfg=shortcut_act_cfg,
         )
     '''forward'''
     def forward(self, x):
@@ -24,19 +24,19 @@ class BasicBlockPLOP(BasicBlock):
         out = self.conv2(out)
         out = self.bn2(out)
         if self.downsample is not None: identity = self.downsample(x)
-        out += identity
+        out = out + identity
         attention = out
-        out = self.relu(out)
+        out = self.shortcut_relu(out)
         return out, attention
 
 
 '''BottleneckPLOP'''
 class BottleneckPLOP(Bottleneck):
     expansion = 4
-    def __init__(self, inplanes, planes, stride=1, dilation=1, downsample=None, norm_cfg=None, act_cfg=None):
+    def __init__(self, inplanes, planes, stride=1, dilation=1, downsample=None, norm_cfg=None, act_cfg=None, shortcut_norm_cfg=None, shortcut_act_cfg=None):
         super(BottleneckPLOP, self).__init__(
             inplanes=inplanes, planes=planes, stride=stride, dilation=dilation, downsample=downsample, 
-            norm_cfg=norm_cfg, act_cfg=act_cfg,
+            norm_cfg=norm_cfg, act_cfg=act_cfg, shortcut_norm_cfg=shortcut_norm_cfg, shortcut_act_cfg=shortcut_act_cfg,
         )
     '''forward'''
     def forward(self, x):
@@ -51,18 +51,17 @@ class BottleneckPLOP(Bottleneck):
         out = self.conv3(out)
         out = self.bn3(out)
         if self.downsample is not None: identity = self.downsample(x)
-        out += identity
+        out = out + identity
         attention = out
-        out = self.relu(out)
+        out = self.shortcut_relu(out)
         return out, attention
 
 
 '''ResNetPLOP'''
 class ResNetPLOP(ResNet):
     def __init__(self, in_channels=3, base_channels=64, stem_channels=64, depth=101, outstride=16, contract_dilation=False, deep_stem=False, 
-                 out_indices=(0, 1, 2, 3), use_avg_for_downsample=False, norm_cfg={'type': 'InPlaceABNSync', 'activation': 'identity'}, 
-                 act_cfg={'type': 'LeakyReLU', 'inplace': True, 'negative_slope': 0.01},  pretrained=True, pretrained_model_path=None, 
-                 user_defined_block=None, use_inplaceabn_style=True):
+                 out_indices=(0, 1, 2, 3), use_avg_for_downsample=False, norm_cfg={'type': 'InPlaceABNSync', 'activation': 'leaky_relu', 'activation_param': 0.01}, 
+                 act_cfg=None,  pretrained=True, pretrained_model_path=None, user_defined_block=None, use_inplaceabn_style=True):
         if user_defined_block is None:
             user_defined_block = BasicBlockPLOP if depth in [18, 34] else BottleneckPLOP
         super(ResNetPLOP, self).__init__(
