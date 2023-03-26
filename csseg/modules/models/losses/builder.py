@@ -7,6 +7,7 @@ Author:
 import copy
 from .klloss import KLDivLoss
 from .celoss import CrossEntropyLoss
+from .csloss import CosineSimilarityLoss
 
 
 '''BuildLoss'''
@@ -16,6 +17,7 @@ def BuildLoss(loss_cfg):
     supported_lossfuncs = {
         'KLDivLoss': KLDivLoss,
         'CrossEntropyLoss': CrossEntropyLoss,
+        'CosineSimilarityLoss': CosineSimilarityLoss,
     }
     # parse
     loss_type = loss_cfg.pop('type')

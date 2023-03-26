@@ -1,6 +1,6 @@
 '''
 Function:
-    Implementation of utils, e.g., setRandomSeed
+    Implementation of utils, e.g., setrandomseed
 Author:
     Zhenchao Jin
 '''
@@ -9,8 +9,8 @@ import random
 import numpy as np
 
 
-'''setRandomSeed'''
-def setRandomSeed(seed):
+'''setrandomseed'''
+def setrandomseed(seed):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
