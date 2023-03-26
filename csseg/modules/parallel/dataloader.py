@@ -4,18 +4,22 @@ Function:
 Author:
     Zhenchao Jin
 '''
+import copy
 import torch
+import torch.utils.data.distributed.DistributedSampler as DistributedSampler
 
 
 '''BuildDistributedDataloader'''
 def BuildDistributedDataloader(dataset, dataloader_cfg):
-    args = {
-        'batch_size': dataloader_cfg.get('batch_size', 16),
-        'num_workers': dataloader_cfg.get('num_workers', 16),
-        'shuffle': False,
-        'pin_memory': dataloader_cfg.get('pin_memory', True),
-        'drop_last': dataloader_cfg.get('drop_last', True),
-        'sampler': torch.utils.data.distributed.DistributedSampler(dataset, shuffle=dataloader_cfg.get('shuffle', True)),
-    }
-    dataloader = torch.utils.data.DataLoader(dataset, **args)
+    dataloader_cfg = copy.deepcopy(dataloader_cfg)
+    # parse
+    dataloader_cfg = dataloader_cfg[dataset.mode.lower()]
+    shuffle = dataloader_cfg.pop('shuffle')
+    dataloader_cfg['shuffle'] = False
+    # sampler
+    sampler = DistributedSampler(dataset, shuffle=shuffle)
+    dataloader_cfg['sampler'] = sampler
+    # dataloader
+    dataloader = torch.utils.data.DataLoader(dataset, **dataloader_cfg)
+    # return
     return dataloader

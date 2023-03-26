@@ -5,26 +5,48 @@ Author:
     Zhenchao Jin
 '''
 import torch
+import numbers
+import collections
 import torch.nn as nn
+from ..losses import BuildLoss
 from ..encoders import BuildEncoder
 from ..decoders import BuildDecoder
 
 
 '''BaseSegmentor'''
 class BaseSegmentor(nn.Module):
-    def __init__(self, seleced_indices=(0, 1, 2, 3), encoder_cfg={}, decoder_cfg={}):
-        # define encoder and decoder
+    def __init__(self, mode, seleced_indices=(0, 1, 2, 3), encoder_cfg={}, decoder_cfg={}):
+        # assert
+        assert mode in ['TRAIN', 'TEST']
+        assert isinstance(seleced_indices, (numbers.Number, collections.Sequence))
+        # set attributes
+        self.seleced_indices = seleced_indices
+        # build encoder and decoder
         self.encoder = BuildEncoder(encoder_cfg)
         self.decoder = BuildDecoder(decoder_cfg)
-        # set attributes
+        # build classifier
+        self.conv_cls = None
     '''forward'''
     def forward(self, x):
         # feed to encoder
         encoder_outputs = self.encoder(x)
-        # selected
-        logits = self.decoder(feats)
+        # select encoder outputs
+        selected_feats = self.transforminputs(encoder_outputs, self.seleced_indices)
+        # feed to decoder
+        decoder_outputs = self.decoder(selected_feats)
+        # feed to classifier
+        logits = self.conv_cls(decoder_outputs)
+        # return
         return logits
-
+    '''calculatelosses'''
+    def calculatelosses(self, logits, targets, loss_cfgs):
+        pass
+    '''transforminputs'''
+    def transforminputs(self, inputs, seleced_indices):
+        if isinstance(seleced_indices, numbers.Number):
+            seleced_indices = [seleced_indices]
+        outputs = [inputs[idx] for idx in seleced_indices]
+        return outputs if len(seleced_indices) > 1 else outputs[0]
 
 
 class IncrementalSegmentationModule(nn.Module):
