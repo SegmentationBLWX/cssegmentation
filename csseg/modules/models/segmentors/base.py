@@ -9,6 +9,7 @@ import numbers
 import collections
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.distributed as dist
 from ..losses import BuildLoss
 from ..encoders import BuildEncoder
 from ..decoders import BuildDecoder
@@ -24,6 +25,7 @@ class BaseSegmentor(nn.Module):
         self.mode = mode
         self.align_corners = align_corners
         self.seleced_indices = seleced_indices
+        self.num_classes_list = num_classes_list
         # build encoder and decoder
         self.encoder = BuildEncoder(encoder_cfg)
         self.decoder = BuildDecoder(decoder_cfg)
@@ -47,6 +49,7 @@ class BaseSegmentor(nn.Module):
         outputs = {'seg_logits': seg_logits}
         # calculate segmentation losses if `mode` is 'TRAIN'
         if self.mode == 'TRAIN':
+            seg_logits = F.interpolate(seg_logits, size=img_size, mode='bilinear', align_corners=False)
             loss_total, losses_log_dict = self.calculatelosses(seg_logits, seg_targets, losses_cfgs)
             outputs.update({
                 'loss_total': loss_total, 'losses_log_dict': losses_log_dict
@@ -57,6 +60,7 @@ class BaseSegmentor(nn.Module):
     def calculateloss(self, seg_logits, seg_targets, losses_cfg):
         loss = 0
         for loss_type, loss_cfg in losses_cfg.items():
+            loss_cfg = loss_cfg.copy()
             loss_cfg['type'] = loss_type
             loss += BuildLoss(loss_cfg)(prediction=seg_logits, target=seg_targets)
         return loss
@@ -72,10 +76,9 @@ class BaseSegmentor(nn.Module):
         losses_log_dict.update({'loss_total': loss_total})
         # syn losses_log_dict
         for key, value in losses_log_dict.items():
-            if dist.is_available() and dist.is_initialized():
-                value = value.data.clone()
-                dist.all_reduce(value.div_(dist.get_world_size()))
-                losses_log_dict[key] = value.item()
+            value = value.data.clone()
+            dist.all_reduce(value.div_(dist.get_world_size()))
+            losses_log_dict[key] = value.item()
         # return
         return loss_total, losses_log_dict
     '''transforminputs'''

@@ -4,11 +4,16 @@ Function:
 Author:
     Zhenchao Jin
 '''
-import torch
-import torch.nn as nn
+from .base import BaseRunner
 
 
 '''PLOPRunner'''
-class PLOPRunner():
-    def __init__(self):
-        pass
+class PLOPRunner(BaseRunner):
+    def __init__(self, cmd_args, runner_cfg):
+        super(PLOPRunner, self).__init__(cmd_args, runner_cfg)
+    '''train'''
+    def train(self):
+        self.segmentor.train()
+    '''test'''
+    def test(self):
+        self.segmentor.eval()

@@ -16,7 +16,7 @@ class BaseScheduler():
         self.lr = lr
         self.cur_lr = lr
         self.cur_iter = 0
-        self.cur_epoch = 0
+        self.cur_epoch = 1
         self.optimizer = optimizer
         self.max_iters = max_iters
         self.max_epochs = max_epochs
@@ -30,15 +30,13 @@ class BaseScheduler():
     '''state'''
     def state(self):
         state_dict = {
-            'cur_iter': self.cur_iter,
             'cur_epoch': self.cur_epoch,
-            'optimizer': self.optimizer,
         }
         return state_dict
     '''load'''
     def load(self, state_dict):
-        self.cur_iter = state_dict['cur_iter']
-        self.cur_epoch = state_dict['cur_epoch']
+        self.cur_iter = state_dict['iters_per_epoch'] * state_dict['cur_epoch']
+        self.cur_epoch = state_dict['cur_epoch'] + 1
     '''clipgradients'''
     def clipgradients(self, params, max_norm=35, norm_type=2):
         params = list(filter(lambda p: p.requires_grad and p.grad is not None, params))

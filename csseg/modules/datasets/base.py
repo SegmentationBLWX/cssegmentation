@@ -11,6 +11,7 @@ import torchvision
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
+from .pipelines import SegmentationEvaluator
 from .pipelines import (
     Compose, Resize, CenterCrop, Pad, Lambda, RandomRotation, RandomHorizontalFlip, RandomVerticalFlip,
     ToTensor, Normalize, RandomCrop, RandomResizedCrop, ColorJitter
@@ -157,6 +158,13 @@ class BaseDataset(torch.utils.data.Dataset):
     def stripzero(labels):
         while 0 in labels:
             labels.remove(0)
+    '''evaluate'''
+    @staticmethod
+    def evaluate(self, seg_gts, seg_preds, device=None):
+        seg_evaluator = SegmentationEvaluator(num_classes=self.data_generator.num_classes)
+        seg_evaluator.update(seg_gts=seg_gts, seg_preds=seg_preds)
+        seg_evaluator.synchronize(device=device)
+        return seg_evaluator.evaluate()
     '''len'''
     def __len__(self):
         return len(self.data_generator)
