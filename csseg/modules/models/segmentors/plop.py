@@ -37,7 +37,7 @@ class PLOPSegmentor(BaseSegmentor):
         conv_cls = self.convs_cls[-1]
         imprinting_w = self.convs_cls[0].weight[0]
         bkg_bias = self.convs_cls[0].bias[0]
-        bias_diff = torch.log(torch.FloatTensor([self.num_classes_list[-1] + 1])).to(device)
+        bias_diff = torch.log(torch.FloatTensor([self.num_known_classes_list[-1] + 1])).to(device)
         new_bias = (bkg_bias - bias_diff)
         conv_cls.weight.data.copy_(imprinting_w)
         conv_cls.bias.data.copy_(new_bias)

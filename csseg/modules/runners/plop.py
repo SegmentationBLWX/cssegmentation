@@ -80,19 +80,18 @@ class PLOPRunner(BaseRunner):
                 )
             # --merge two losses
             loss_total = pod_total_loss + seg_total_loss
-            losses_log_dict = dict()
-            losses_log_dict.update(seg_losses_log_dict)
-            losses_log_dict.update(pod_losses_log_dict)
-            losses_log_dict['loss_total'] = loss_total.item()
             # --perform back propagation
             with amp.scale_loss(loss_total, self.optimizer) as scaled_loss_total:
                 scaled_loss_total.backward()
             self.scheduler.step()
             # --logging training loss info
-            losses_log_dict.update({
+            losses_log_dict = {
                 'algorithm': self.runner_cfg['algorithm'], 'task_id': self.runner_cfg['task_id'],
                 'epoch': self.scheduler.cur_epoch, 'iteration': self.scheduler.cur_iter, 'lr': self.scheduler.cur_lr
-            })
+            }
+            losses_log_dict.update(seg_losses_log_dict)
+            losses_log_dict.update(pod_losses_log_dict)
+            losses_log_dict['loss_total'] = loss_total.item()
             if (self.scheduler.cur_iter % self.log_interval_iterations == 0) and (self.cmd_args.local_rank == 0):
                 self.logger_handle.info(losses_log_dict)
     '''findmedianforpseudolabeling'''
@@ -111,6 +110,7 @@ class PLOPRunner(BaseRunner):
             images = data_meta['image'].to(self.device, dtype=torch.float32)
             targets = data_meta['target'].to(self.device, dtype=torch.long)
             seg_logits = self.history_segmentor(images)['seg_logits']
+            seg_logits = F.interpolate(seg_logits, size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners)
             background_mask = (targets == 0)
             seg_probs = torch.softmax(seg_logits, dim=1)
             max_seg_probs, pseudo_labels = seg_probs.max(dim=1)
@@ -164,9 +164,9 @@ class PLOPRunner(BaseRunner):
                 tmp[:, 1:] = attention[:, 1:num_history_known_classes]
                 attention = tmp
             history_attention = torch.pow(history_attention, 2)
-            history_attention = self.localpod(history_attention, spp_scales)
+            history_attention = PLOPRunner.localpod(history_attention, spp_scales)
             attention = torch.pow(attention, 2)
-            attention = self.localpod(attention, spp_scales)
+            attention = PLOPRunner.localpod(attention, spp_scales)
             if isinstance(history_attention, list):
                 layer_loss = torch.tensor([torch.frobenius_norm(h_a - n_a, dim=-1) for h_a, n_a in zip(history_attention, attention)]).to(device)
             else:

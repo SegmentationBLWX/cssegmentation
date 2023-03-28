@@ -106,6 +106,7 @@ class BaseRunner(nn.Module):
             self.logger_handle.info(f'Config Details: \n{self.runner_cfg}')
         for cur_epoch in range(self.scheduler.cur_epoch, self.scheduler.max_epochs+1):
             self.train(cur_epoch=cur_epoch)
+            self.scheduler.cur_epoch += 1
             if ((cur_epoch % self.save_interval_epochs == 0) or (cur_epoch == self.scheduler.max_epochs)) and (self.cmd_args.local_rank == 0):
                 ckpt_path = os.path.join(self.task_work_dir, f'epoch_{cur_epoch}.pth')
                 saveckpts(ckpts=self.state(), savepath=ckpt_path)
@@ -118,7 +119,6 @@ class BaseRunner(nn.Module):
                         self.best_score = results[self.choose_best_segmentor_by_metric]
                         symlink(ckpt_path, os.path.join(self.task_work_dir, 'best.pth'))
                         saveaspickle(results, os.path.join(self.task_work_dir, 'best.pkl'))
-                if self.cmd_args.local_rank == 0:
                     self.logger_handle.info(results)
     '''train'''
     def train(self, cur_epoch):
@@ -130,11 +130,10 @@ class BaseRunner(nn.Module):
         self.segmentor.eval()
         seg_evaluator = SegmentationEvaluator(num_classes=self.runner_cfg['num_total_classes'])
         with torch.no_grad():
+            test_loader = self.test_loader
             if self.cmd_args.local_rank == 0:
                 test_loader = tqdm(self.test_loader)
                 test_loader.set_description('Evaluating')
-            else:
-                test_loader = self.test_loader
             for batch_idx, data_meta in enumerate(test_loader):
                 images = data_meta['image'].to(self.device, dtype=torch.float32)
                 targets = data_meta['target'].to(self.device, dtype=torch.long)

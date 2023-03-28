@@ -19,6 +19,7 @@ def parsecmdargs():
     parser.add_argument('--local_rank', dest='local_rank', help='node rank for distributed training.', default=0, type=int)
     parser.add_argument('--nproc_per_node', dest='nproc_per_node', help='number of processes per node.', default=2, type=int)
     parser.add_argument('--cfgfilepath', dest='cfgfilepath', help='config file path you want to load.', type=str, required=True)
+    parser.add_argument('--starttaskid', dest='starttaskid', help='task id you want to start from.', default=0, type=int)
     cmd_args = parser.parse_args()
     return cmd_args
 
@@ -33,7 +34,8 @@ class Trainer():
         cmd_args, runner_cfg = self.cmd_args, self.cfg.RUNNER_CFG
         dist.init_process_group(backend=runner_cfg['PARALLEL_CFG']['backend'], init_method=runner_cfg['PARALLEL_CFG']['init_method'])
         torch.cuda.set_device(cmd_args.local_rank)
-        for task_id in range(runner_cfg['num_tasks']):
+        assert runner_cfg['num_tasks'] > cmd_args.starttaskid + 1
+        for task_id in range(cmd_args.starttaskid, runner_cfg['num_tasks']):
             runner_cfg['task_id'] = task_id
             runner_client = BuildRunner(mode='TRAIN', cmd_args=cmd_args, runner_cfg=runner_cfg)
             runner_client.start()

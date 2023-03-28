@@ -28,6 +28,8 @@ def saveckpts(ckpts, savepath):
 
 '''loadckpts'''
 def loadckpts(ckptspath, map_to_cpu=True):
+    if os.path.islink(ckptspath):
+        ckptspath = os.readlink(ckptspath)
     if map_to_cpu:
         ckpts = torch.load(ckptspath, map_location=torch.device('cpu'))
     else:
@@ -51,7 +53,7 @@ def loadpicklefile(filepath):
 
 '''symlink'''
 def symlink(src_path, dst_path):
-    if os.path.exists(dst_path):
+    if os.path.islink(dst_path):
         os.unlink(dst_path)
     os.symlink(src_path, dst_path)
     return True
