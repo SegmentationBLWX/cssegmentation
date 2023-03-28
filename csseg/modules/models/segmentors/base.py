@@ -18,6 +18,7 @@ from ..decoders import BuildDecoder
 '''BaseSegmentor'''
 class BaseSegmentor(nn.Module):
     def __init__(self, seleced_indices=(0, 1, 2, 3), num_known_classes_list=[], align_corners=False, encoder_cfg={}, decoder_cfg={}):
+        super(BaseSegmentor, self).__init__()
         # assert
         assert isinstance(seleced_indices, (numbers.Number, collections.Sequence))
         # set attributes

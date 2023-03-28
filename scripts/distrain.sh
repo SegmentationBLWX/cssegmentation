@@ -16,5 +16,5 @@ python -m torch.distributed.launch \
     --master_addr=$MASTERADDR \
     --nproc_per_node=$NGPUS \
     --master_port=$PORT \
-    ssseg/train.py --nproc_per_node $NGPUS \
+    csseg/train.py --nproc_per_node $NGPUS \
                    --cfgfilepath $CFGFILEPATH ${@:3}

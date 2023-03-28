@@ -56,10 +56,11 @@ SEGMENTOR_CFG = {
 }
 # OPTIMIZER_CFG
 OPTIMIZER_CFG = {
-    'constructor_cfg': {'filter_params': True, 'paramwise_cfg': None},
+    'constructor_cfg': {'type': 'DefaultParamsConstructor', 'filter_params': True, 'paramwise_cfg': None},
     'type': 'SGD',
     'momentum': 0.9, 
     'nesterov': True,
+    'weight_decay': 0
 }
 # SCHEDULER_CFGS
 SCHEDULER_CFGS = [{

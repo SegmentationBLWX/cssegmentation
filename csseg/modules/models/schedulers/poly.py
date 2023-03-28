@@ -10,7 +10,7 @@ from .base import BaseScheduler
 '''PolyScheduler'''
 class PolyScheduler(BaseScheduler):
     def __init__(self, optimizer, max_iters, max_epochs, lr, min_lr=None, power=0.9):
-        super(BaseScheduler, self).__init__(
+        super(PolyScheduler, self).__init__(
             optimizer=optimizer, max_iters=max_iters, max_epochs=max_epochs, lr=lr, min_lr=min_lr
         )
         self.power = power

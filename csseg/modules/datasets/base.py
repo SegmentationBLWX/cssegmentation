@@ -103,6 +103,7 @@ class BaseDataset(torch.utils.data.Dataset):
         dataset_cfg_g = copy.deepcopy(dataset_cfg)
         dataset_cfg_g.pop('transforms')
         self.data_generator = self.builddatagenerator(mode, dataset_cfg_g)
+        self.num_classes = self.data_generator.num_classes
         self.transforms = self.data_generator.constructtransforms(dataset_cfg['transforms'])
         # prepare for training
         self.prepare(dataset_cfg, self.transforms, self.data_generator)

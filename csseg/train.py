@@ -4,6 +4,7 @@ Function:
 Author:
     Zhenchao Jin
 '''
+import torch
 import argparse
 import torch.distributed as dist
 from configs import BuildConfig
@@ -24,7 +25,7 @@ def parsecmdargs():
 class Trainer():
     def __init__(self, cmd_args):
         self.cmd_args = cmd_args
-        self.cfg = BuildConfig(cmd_args.cfgfilepath)
+        self.cfg = BuildConfig(cmd_args.cfgfilepath)[0]
     '''start'''
     def start(self):
         cmd_args, runner_cfg = self.cmd_args, self.cfg.RUNNER_CFG
@@ -32,8 +33,8 @@ class Trainer():
         torch.cuda.set_device(cmd_args.local_rank)
         for task_id in range(runner_cfg['num_tasks']):
             runner_cfg['task_id'] = task_id
-        runner_client = BuildRunner(cmd_args=cmd_args, runner_cfg=runner_cfg)
-        runner_client.start()
+            runner_client = BuildRunner(cmd_args=cmd_args, runner_cfg=runner_cfg)
+            runner_client.start()
 
 
 '''main'''

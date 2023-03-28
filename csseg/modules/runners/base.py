@@ -6,6 +6,8 @@ Author:
 '''
 import os
 import copy
+import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from apex import amp
 from tqdm import tqdm
@@ -16,8 +18,9 @@ from ..parallel import BuildDistributedDataloader, BuildDistributedModel
 
 
 '''BaseRunner'''
-class BaseRunner():
+class BaseRunner(nn.Module):
     def __init__(self, cmd_args, runner_cfg):
+        super(BaseRunner, self).__init__()
         # set attributes
         self.best_score = 0
         self.cmd_args = cmd_args
@@ -30,11 +33,11 @@ class BaseRunner():
         self.log_interval_iterations = runner_cfg['log_interval_iterations']
         self.choose_best_segmentor_by_metric = runner_cfg['choose_best_segmentor_by_metric']
         self.eps = runner_cfg.get('eps', 1e-6)
-        # build logger handle
-        self.logger_handle = Logger(logfilepath=runner_cfg['logfilepath'])
         # build workdir
         touchdir(dirname=self.root_work_dir)
         touchdir(dirname=self.task_work_dir)
+        # build logger handle
+        self.logger_handle = Logger(logfilepath=runner_cfg['logfilepath'])
         # build datasets
         dataset_cfg = runner_cfg['DATASET_CFG']
         train_set = BuildDataset(mode='TRAIN', task_name=runner_cfg['task_name'], task_id=runner_cfg['task_id'], dataset_cfg=dataset_cfg)
@@ -62,7 +65,7 @@ class BaseRunner():
         optimizer_cfg['lr'] = scheduler_cfg['lr']
         self.optimizer = BuildOptimizer(model=self.segmentor, optimizer_cfg=optimizer_cfg)
         # build scheduler
-        self.scheduler = BuildScheduler(optimizer=optimizer, scheduler_cfg=scheduler_cfg)
+        self.scheduler = BuildScheduler(optimizer=self.optimizer, scheduler_cfg=scheduler_cfg)
         # parallel segmentor
         parallel_cfg = runner_cfg['PARALLEL_CFG']
         if self.history_segmentor is None:
@@ -71,7 +74,7 @@ class BaseRunner():
             )
         else:
             [self.segmentor, self.history_segmentor], self.optimizer = amp.initialize(
-                [self.segmentor.to(device), self.history_segmentor.to(device)], self.optimizer, opt_level=parallel_cfg['opt_level']
+                [self.segmentor.to(self.device), self.history_segmentor.to(self.device)], self.optimizer, opt_level=parallel_cfg['opt_level']
             )
             self.history_segmentor = BuildDistributedModel(model=self.history_segmentor, model_cfg={})
         self.segmentor = BuildDistributedModel(model=self.segmentor, model_cfg={'delay_allreduce': True})
