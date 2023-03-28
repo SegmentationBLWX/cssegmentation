@@ -97,7 +97,7 @@ RUNNER_CFG.update({
     'work_dir': '',
     'save_interval_epochs': 1,
     'eval_interval_epochs': 1,
-    'log_interval_iterations': 10,
+    'log_interval_iterations': 50,
     'choose_best_segmentor_by_metric': 'mean_iou',
     'logfilepath': '',
     'num_total_classes': -1,

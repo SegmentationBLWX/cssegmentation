@@ -92,7 +92,7 @@ class PLOPRunner(BaseRunner):
                 scaled_loss_total.backward()
             self.scheduler.step()
             # --logging training loss info
-            if (self.scheduler.cur_lr % self.log_interval_iterations == 0) and (self.cmd_args.local_rank == 0):
+            if (self.scheduler.cur_iter % self.log_interval_iterations == 0) and (self.cmd_args.local_rank == 0):
                 self.logger_handle.info(losses_log_dict)
     '''findmedianforpseudolabeling'''
     def findmedianforpseudolabeling(self):
