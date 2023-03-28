@@ -4,11 +4,13 @@ Function:
 Author:
     Zhenchao Jin
 '''
+import copy
 import math
 import torch
 import functools
 import torch.nn.functional as F
 import torch.distributed as dist
+from apex import amp
 from tqdm import tqdm
 from .base import BaseRunner
 
@@ -23,7 +25,7 @@ class PLOPRunner(BaseRunner):
     def train(self, cur_epoch):
         # logging start task info
         if self.cmd_args.local_rank == 0:
-            self.logger_handle.info(f'Start to train {self.runner_cfg["algorithm"]} at Task{self.runner_cfg["task_id"]}-Epoch{cur_epoch}')
+            self.logger_handle.info(f'Start to train {self.runner_cfg["algorithm"]} at Task {self.runner_cfg["task_id"]}, Epoch {cur_epoch}')
         # initialize
         losses_cfgs = self.runner_cfg['LOSSES_CFGS']
         self.segmentor.train()

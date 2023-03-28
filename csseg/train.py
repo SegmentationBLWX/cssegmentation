@@ -5,10 +5,12 @@ Author:
     Zhenchao Jin
 '''
 import torch
+import warnings
 import argparse
 import torch.distributed as dist
 from configs import BuildConfig
 from modules import BuildRunner, BuildDataset
+warnings.filterwarnings('ignore')
 
 
 '''parsecmdargs'''

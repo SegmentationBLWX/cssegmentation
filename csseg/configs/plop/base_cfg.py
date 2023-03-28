@@ -31,9 +31,9 @@ DATALOADER_CFG = {
 }
 # SEGMENTOR_CFG
 SEGMENTOR_CFG = {
-    'type': 'BaseSegmentor',
+    'type': 'PLOPSegmentor',
     'num_known_classes_list': None,
-    'seleced_indices': (3,), 
+    'selected_indices': (3,), 
     'align_corners': False, 
     'encoder_cfg': {
         'type': 'ResNetPLOP',
@@ -46,7 +46,7 @@ SEGMENTOR_CFG = {
     }, 
     'decoder_cfg': {
         'type': 'ASPPHead',
-        'in_channels': 256,
+        'in_channels': 2048,
         'out_channels': 256,
         'dilations': (1, 6, 12, 18),
         'align_corners': False,
@@ -97,7 +97,7 @@ RUNNER_CFG.update({
     'work_dir': '',
     'save_interval_epochs': 1,
     'eval_interval_epochs': 1,
-    'log_interval_iterations': 50,
+    'log_interval_iterations': 10,
     'choose_best_segmentor_by_metric': 'mean_iou',
     'logfilepath': '',
     'num_total_classes': -1,

@@ -6,6 +6,7 @@ Author:
 '''
 import copy
 from .base import BaseSegmentor
+from .plop import PLOPSegmentor
 
 
 '''BuildSegmentor'''
@@ -14,6 +15,7 @@ def BuildSegmentor(segmentor_cfg):
     # supported segmentors
     supported_segmentors = {
         'BaseSegmentor': BaseSegmentor,
+        'PLOPSegmentor': PLOPSegmentor,
     }
     # parse
     segmentor_type = segmentor_cfg.pop('type')

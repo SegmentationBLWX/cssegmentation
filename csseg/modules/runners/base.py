@@ -102,13 +102,13 @@ class BaseRunner(nn.Module):
             self.logger_handle.info(f'Load Config From: {self.cmd_args.cfgfilepath}')
             self.logger_handle.info(f'Config Details: \n{self.runner_cfg}')
         for cur_epoch in range(self.scheduler.cur_epoch, self.scheduler.max_epochs+1):
-            self.train()
+            self.train(cur_epoch=cur_epoch)
             if ((cur_epoch % self.save_interval_epochs == 0) or (cur_epoch == self.scheduler.max_epochs)) and (self.cmd_args.local_rank == 0):
                 ckpt_path = os.path.join(self.task_work_dir, f'epoch_{cur_epoch}.pth')
                 saveckpts(ckpts=self.state(), savepath=ckpt_path)
                 os.symlink(ckpt_path, os.path.join(self.task_work_dir, 'latest.pth'))
             if (cur_epoch % self.eval_interval_epochs == 0) or (cur_epoch == self.scheduler.max_epochs):
-                results = self.test()
+                results = self.test(cur_epoch=cur_epoch)
                 if self.cmd_args.local_rank == 0:
                     ckpt_path = os.path.join(self.task_work_dir, f'epoch_{cur_epoch}.pth')
                     if self.best_score <= results[self.choose_best_segmentor_by_metric]:
@@ -121,7 +121,7 @@ class BaseRunner(nn.Module):
     '''test'''
     def test(self, cur_epoch):
         if self.cmd_args.local_rank == 0:
-            self.logger_handle.info(f'Start to test {self.runner_cfg["algorithm"]} at Task{self.runner_cfg["task_id"]}-Epoch{cur_epoch}')
+            self.logger_handle.info(f'Start to test {self.runner_cfg["algorithm"]} at Task {self.runner_cfg["task_id"]}, Epoch {cur_epoch}')
         self.segmentor.eval()
         seg_evaluator = SegmentationEvaluator(num_classes=self.runner_cfg['num_total_classes'])
         with torch.no_grad():

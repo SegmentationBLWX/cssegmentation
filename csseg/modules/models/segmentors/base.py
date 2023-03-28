@@ -17,13 +17,13 @@ from ..decoders import BuildDecoder
 
 '''BaseSegmentor'''
 class BaseSegmentor(nn.Module):
-    def __init__(self, seleced_indices=(0, 1, 2, 3), num_known_classes_list=[], align_corners=False, encoder_cfg={}, decoder_cfg={}):
+    def __init__(self, selected_indices=(0, 1, 2, 3), num_known_classes_list=[], align_corners=False, encoder_cfg={}, decoder_cfg={}):
         super(BaseSegmentor, self).__init__()
         # assert
-        assert isinstance(seleced_indices, (numbers.Number, collections.Sequence))
+        assert isinstance(selected_indices, (numbers.Number, collections.Sequence))
         # set attributes
         self.align_corners = align_corners
-        self.seleced_indices = seleced_indices
+        self.selected_indices = selected_indices
         self.num_known_classes_list = num_known_classes_list
         # build encoder and decoder
         self.encoder = BuildEncoder(encoder_cfg)
@@ -38,7 +38,7 @@ class BaseSegmentor(nn.Module):
         # feed to encoder
         encoder_outputs = self.encoder(x)
         # select encoder outputs
-        selected_feats = self.transforminputs(encoder_outputs, self.seleced_indices)
+        selected_feats = self.transforminputs(encoder_outputs, self.selected_indices)
         # feed to decoder
         decoder_outputs = self.decoder(selected_feats)
         # feed to classifier
@@ -77,8 +77,8 @@ class BaseSegmentor(nn.Module):
         # return
         return loss_total, losses_log_dict
     '''transforminputs'''
-    def transforminputs(self, inputs, seleced_indices):
-        if isinstance(seleced_indices, numbers.Number):
-            seleced_indices = [seleced_indices]
-        outputs = [inputs[idx] for idx in seleced_indices]
-        return outputs if len(seleced_indices) > 1 else outputs[0]
+    def transforminputs(self, inputs, selected_indices):
+        if isinstance(selected_indices, numbers.Number):
+            selected_indices = [selected_indices]
+        outputs = [inputs[idx] for idx in selected_indices]
+        return outputs if len(selected_indices) > 1 else outputs[0]
