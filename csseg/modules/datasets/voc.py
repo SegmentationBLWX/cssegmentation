@@ -19,7 +19,7 @@ class _VOCDataset(_BaseDataset):
     ]
     assert num_classes == len(classnames)
     def __init__(self, mode, dataset_cfg):
-        super(_VOCDataset, self).__init__(mode, dataset_cfg)
+        super(_VOCDataset, self).__init__(mode=mode, dataset_cfg=dataset_cfg)
         # set directory
         rootdir = dataset_cfg['rootdir']
         self.image_dir = os.path.join(rootdir, 'JPEGImages')
@@ -141,8 +141,10 @@ class VOCDataset(BaseDataset):
             1: [11], 2: [12], 3: [13], 4: [14], 5: [15], 6: [16], 7: [17], 8: [18], 9: [19], 10: [20]
         },
     }
-    def __init__(self, mode, dataset_cfg):
-        super(VOCDataset, self).__init__(mode, dataset_cfg)
+    def __init__(self, mode, task_name, task_id, dataset_cfg):
+        super(VOCDataset, self).__init__(
+            mode=mode, task_name=task_name, task_id=task_id, dataset_cfg=dataset_cfg
+        )
     '''builddatagenerator'''
     def builddatagenerator(self, mode, dataset_cfg):
         data_generator = _VOCDataset(mode, dataset_cfg)

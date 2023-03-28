@@ -37,7 +37,7 @@ class _ADE20kDataset(BaseDataset):
     ]
     assert num_classes == len(classnames)
     def __init__(self, mode, dataset_cfg):
-        super(_ADE20kDataset, self).__init__(mode, dataset_cfg)
+        super(_ADE20kDataset, self).__init__(mode=mode, dataset_cfg=dataset_cfg)
         # set directory
         rootdir = dataset_cfg['rootdir']
         setmap_dict = {'train': 'training', 'val': 'validation', 'test': 'testing'}
@@ -72,8 +72,10 @@ class ADE20kDataset(BaseDataset):
             0: [x for x in range(0, 51)], 1: [x for x in range(51, 101)], 2: [x for x in range(101, 151)]
         },
     }
-    def __init__(self, mode, dataset_cfg):
-        super(ADE20kDataset, self).__init__(mode, dataset_cfg)
+    def __init__(self, mode, task_name, task_id, dataset_cfg):
+        super(ADE20kDataset, self).__init__(
+            mode=mode, task_name=task_name, task_id=task_id, dataset_cfg=dataset_cfg
+        )
     '''builddatagenerator'''
     def builddatagenerator(self, mode, dataset_cfg):
         data_generator = _ADE20kDataset(mode, dataset_cfg)

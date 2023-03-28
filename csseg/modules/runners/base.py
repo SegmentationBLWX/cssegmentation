@@ -6,9 +6,10 @@ Author:
 '''
 import os
 import copy
-import pickle
+import torch.nn.functional as F
 from apex import amp
-from ..datasets import BuildDataset
+from tqdm import tqdm
+from ..datasets import BuildDataset, SegmentationEvaluator
 from ..models import BuildSegmentor, BuildOptimizer, BuildScheduler
 from ..utils import Logger, touchdir, loadckpts, saveckpts, saveaspickle
 from ..parallel import BuildDistributedDataloader, BuildDistributedModel
@@ -16,7 +17,7 @@ from ..parallel import BuildDistributedDataloader, BuildDistributedModel
 
 '''BaseRunner'''
 class BaseRunner():
-    def __init__(self, mode, cmd_args, runner_cfg):
+    def __init__(self, cmd_args, runner_cfg):
         # set attributes
         self.best_score = 0
         self.cmd_args = cmd_args
@@ -28,6 +29,7 @@ class BaseRunner():
         self.eval_interval_epochs = runner_cfg['eval_interval_epochs']
         self.log_interval_iterations = runner_cfg['log_interval_iterations']
         self.choose_best_segmentor_by_metric = runner_cfg['choose_best_segmentor_by_metric']
+        self.eps = runner_cfg.get('eps', 1e-6)
         # build logger handle
         self.logger_handle = Logger(logfilepath=runner_cfg['logfilepath'])
         # build workdir
@@ -35,29 +37,32 @@ class BaseRunner():
         touchdir(dirname=self.task_work_dir)
         # build datasets
         dataset_cfg = runner_cfg['DATASET_CFG']
-        train_set = BuildDataset(mode='TRAIN', dataset_cfg=dataset_cfg)
-        test_set = BuildDataset(mode='TEST', dataset_cfg=dataset_cfg)
+        train_set = BuildDataset(mode='TRAIN', task_name=runner_cfg['task_name'], task_id=runner_cfg['task_id'], dataset_cfg=dataset_cfg)
+        test_set = BuildDataset(mode='TEST', task_name=runner_cfg['task_name'], task_id=runner_cfg['task_id'], dataset_cfg=dataset_cfg)
+        assert runner_cfg['num_total_classes'] == train_set.num_classes
+        assert runner_cfg['num_total_classes'] == test_set.num_classes
         # build dataloaders
         dataloader_cfg = runner_cfg['DATALOADER_CFG']
         self.train_loader = BuildDistributedDataloader(dataset=train_set, dataloader_cfg=dataloader_cfg)
         self.test_loader = BuildDistributedDataloader(dataset=test_set, dataloader_cfg=dataloader_cfg)
         # build segmentor
         segmentor_cfg = runner_cfg['SEGMENTOR_CFG']
-        segmentor_cfg['mode'] = mode
+        segmentor_cfg['num_known_classes_list'] = train_set.getnumclassespertask(runner_cfg['task_name'], train_set.tasks, runner_cfg['task_id'])
         self.segmentor = BuildSegmentor(segmentor_cfg=segmentor_cfg)
-        if runner_cfg['task_id'] > 1:
+        if runner_cfg['task_id'] > 0:
             history_segmentor_cfg = copy.deepcopy(segmentor_cfg)
-            history_segmentor_cfg['mode'] = 'TEST'
-            history_segmentor_cfg['num_classes_list'] = segmentor_cfg['num_classes_list'][:-1]
+            history_segmentor_cfg['num_known_classes_list'] = segmentor_cfg['num_known_classes_list'][:-1]
             self.history_segmentor = BuildSegmentor(segmentor_cfg=history_segmentor_cfg)
         else:
             self.history_segmentor = None
         # build optimizer
+        scheduler_cfg = runner_cfg['SCHEDULER_CFGS'][runner_cfg['task_id']]
+        scheduler_cfg['max_iters'] = len(self.train_loader) * scheduler_cfg['max_epochs']
         optimizer_cfg = runner_cfg['OPTIMIZER_CFG']
+        optimizer_cfg['lr'] = scheduler_cfg['lr']
         self.optimizer = BuildOptimizer(model=self.segmentor, optimizer_cfg=optimizer_cfg)
         # build scheduler
-        scheduler_cfg = runner_cfg['SCHEDULER_CFG']
-        self.scheduler = BuildScheduler(scheduler_cfg=scheduler_cfg)
+        self.scheduler = BuildScheduler(optimizer=optimizer, scheduler_cfg=scheduler_cfg)
         # parallel segmentor
         parallel_cfg = runner_cfg['PARALLEL_CFG']
         if self.history_segmentor is None:
@@ -108,11 +113,31 @@ class BaseRunner():
                         os.symlink(ckpt_path, os.path.join(self.task_work_dir, 'best.pth'))
                         saveaspickle(results, os.path.join(self.task_work_dir, 'best.pkl'))
     '''train'''
-    def train(self):
+    def train(self, cur_epoch):
         raise NotImplementedError('not to be implemented')
     '''test'''
-    def test(self):
-        raise NotImplementedError('not to be implemented')
+    def test(self, cur_epoch):
+        if self.cmd_args.local_rank == 0:
+            self.logger_handle.info(f'Start to test {self.runner_cfg["algorithm"]} at Task{self.runner_cfg["task_id"]}-Epoch{cur_epoch}')
+        self.segmentor.eval()
+        seg_evaluator = SegmentationEvaluator(num_classes=self.runner_cfg['num_total_classes'])
+        with torch.no_grad():
+            if self.cmd_args.local_rank == 0:
+                test_loader = tqdm(self.test_loader)
+                test_loader.set_description('Evaluating')
+            for batch_idx, data_meta in enumerate(test_loader):
+                images = data_meta['image'].to(self.device, dtype=torch.float32)
+                targets = data_meta['target'].to(self.device, dtype=torch.long)
+                seg_logits = self.segmentor(images)['seg_logits']
+                seg_logits = F.interpolate(seg_logits, size=targets.shape[-2:], mode='bilinear', align_corners=self.segmentor.module.align_corners)
+                seg_preds = outputs.max(dim=1)[-1]
+                seg_targets = targets.cpu().numpy()
+                seg_preds = seg_preds.cpu().numpy()
+                seg_evaluator.update(seg_targets=seg_targets, seg_preds=seg_preds)
+        seg_evaluator.synchronize(device=self.device)
+        results = seg_evaluator.evaluate()
+        self.segmentor.train()
+        return results
     '''state'''
     def state(self):
         state_dict = self.scheduler.state()

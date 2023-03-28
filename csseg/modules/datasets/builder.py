@@ -10,7 +10,7 @@ from .ade20k import ADE20kDataset
 
 
 '''BuildDataset'''
-def BuildDataset(mode, dataset_cfg):
+def BuildDataset(mode, task_name, task_id, dataset_cfg):
     dataset_cfg = copy.deepcopy(dataset_cfg)
     # supported datasets
     supported_datasets = {
@@ -21,6 +21,6 @@ def BuildDataset(mode, dataset_cfg):
     train_cfg, test_cfg = dataset_cfg.pop('train'), dataset_cfg.pop('test')
     dataset_cfg.update(train_cfg if mode == 'TRAIN' else test_cfg)
     dataset_type = dataset_cfg.pop('type')
-    dataset = supported_datasets[dataset_type](mode, dataset_cfg)
+    dataset = supported_datasets[dataset_type](mode=mode, task_name=task_name, task_id=task_id, dataset_cfg=dataset_cfg)
     # return
     return dataset

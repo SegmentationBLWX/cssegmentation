@@ -24,6 +24,9 @@ class BaseScheduler():
     '''step'''
     def step(self):
         raise NotImplementedError('not to be implemented')
+    '''zerograd'''
+    def zerograd(self):
+        self.optimizer.zero_grad()
     '''updatelr'''
     def updatelr(self):
         raise NotImplementedError('not to be implemented')

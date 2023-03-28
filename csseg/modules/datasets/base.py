@@ -92,11 +92,13 @@ class _BaseDataset(torch.utils.data.Dataset):
 
 '''BaseDataset'''
 class BaseDataset(torch.utils.data.Dataset):
-    def __init__(self, mode, dataset_cfg):
+    def __init__(self, mode, task_name, task_id, dataset_cfg):
         # assert
         assert mode in ['TRAIN', 'TEST']
         # set attributes
         self.mode = mode
+        self.task_id = task_id
+        self.task_name = task_name
         self.dataset_cfg = dataset_cfg
         dataset_cfg_g = copy.deepcopy(dataset_cfg)
         dataset_cfg_g.pop('transforms')
@@ -113,17 +115,20 @@ class BaseDataset(torch.utils.data.Dataset):
     '''prepare'''
     def prepare(self, dataset_cfg, transforms, data_generator):
         # parse
-        labels, labels_histroy = dataset_cfg.get('labels'), dataset_cfg.get('labels_histroy')
+        labels, history_labels = self.gettasklabels(task_name=self.task_name, tasks=self.tasks, task_id=self.task_id)
+        if self.mode == 'TEST': 
+            labels = history_labels + labels
+            history_labels = None
         overlap, masking_value = dataset_cfg['overlap'], dataset_cfg['masking_value']
         # filter images
-        labels_histroy = labels_histroy if labels_histroy is not None else []
+        history_labels = history_labels if history_labels is not None else []
         self.stripzero(labels)
-        self.stripzero(labels_histroy)
-        assert not any(l in labels_histroy for l in labels)
+        self.stripzero(history_labels)
+        assert not any(l in history_labels for l in labels)
         self.labels = [0] + labels
-        self.labels_histroy = [0] + labels_histroy
-        self.all_labels = [0] + labels_histroy + labels
-        selected_indices = self.filterimages(data_generator, labels, labels_histroy, overlap)
+        self.history_labels = [0] + history_labels
+        self.all_labels = [0] + history_labels + labels
+        selected_indices = self.filterimages(data_generator, labels, history_labels, overlap)
         # remap the labels
         self.labels_to_trainlabels_map = {label: self.all_labels.index(label) for label in self.all_labels}
         self.labels_to_trainlabels_map[255] = 255
@@ -132,13 +137,24 @@ class BaseDataset(torch.utils.data.Dataset):
         )
         # obtain subset
         self.data_generator = Subset(data_generator, selected_indices, transforms, target_transforms)
+    '''gettasklabels'''
+    @staticmethod
+    def gettasklabels(task_name, tasks, task_id):
+        labels = list(tasks[task_name][task_id])
+        history_labels = [label for s in range(task_id) for label in tasks[task_name][s]]
+        return labels, history_labels
+    '''getnumclassespertask'''
+    @staticmethod
+    def getnumclassespertask(task_name, tasks, task_id):
+        num_classes_per_task = [len(tasks[task_name][s]) for s in range(task_id + 1)]
+        return num_classes_per_task
     '''filterimages'''
     @staticmethod
-    def filterimages(dataset, labels, labels_histroy=None, overlap=True):
+    def filterimages(dataset, labels, history_labels=None, overlap=True):
         selected_indices = []
         if 0 in labels: labels.remove(0)
-        if labels_histroy is None: labels_histroy = []
-        all_labels = labels + labels_histroy + [0, 255]
+        if history_labels is None: history_labels = []
+        all_labels = labels + history_labels + [0, 255]
         if overlap:
             filter_func = lambda c: any(x in labels for x in cls)
         else:

@@ -17,24 +17,22 @@ from ..decoders import BuildDecoder
 
 '''BaseSegmentor'''
 class BaseSegmentor(nn.Module):
-    def __init__(self, mode, seleced_indices=(0, 1, 2, 3), num_classes_list=[], align_corners=False, encoder_cfg={}, decoder_cfg={}):
+    def __init__(self, seleced_indices=(0, 1, 2, 3), num_known_classes_list=[], align_corners=False, encoder_cfg={}, decoder_cfg={}):
         # assert
-        assert mode in ['TRAIN', 'TEST']
         assert isinstance(seleced_indices, (numbers.Number, collections.Sequence))
         # set attributes
-        self.mode = mode
         self.align_corners = align_corners
         self.seleced_indices = seleced_indices
-        self.num_classes_list = num_classes_list
+        self.num_known_classes_list = num_known_classes_list
         # build encoder and decoder
         self.encoder = BuildEncoder(encoder_cfg)
         self.decoder = BuildDecoder(decoder_cfg)
         # build classifier
         self.convs_cls = nn.ModuleList([
-            nn.Conv2d(self.decoder.out_channels, num_classes, kernel_size=1, stride=1, padding=0) for num_classes in num_classes_list
+            nn.Conv2d(self.decoder.out_channels, num_classes, kernel_size=1, stride=1, padding=0) for num_classes in num_known_classes_list
         ])
     '''forward'''
-    def forward(self, x, seg_targets=None, losses_cfgs=None):
+    def forward(self, x):
         img_size = x.shape[2:]
         # feed to encoder
         encoder_outputs = self.encoder(x)
@@ -47,29 +45,25 @@ class BaseSegmentor(nn.Module):
         seg_logits = torch.cat(seg_logits, dim=1)
         # construct outputs
         outputs = {'seg_logits': seg_logits}
-        # calculate segmentation losses if `mode` is 'TRAIN'
-        if self.mode == 'TRAIN':
-            seg_logits = F.interpolate(seg_logits, size=img_size, mode='bilinear', align_corners=False)
-            loss_total, losses_log_dict = self.calculatelosses(seg_logits, seg_targets, losses_cfgs)
-            outputs.update({
-                'loss_total': loss_total, 'losses_log_dict': losses_log_dict
-            })
         # return
         return outputs
-    '''calculateloss'''
-    def calculateloss(self, seg_logits, seg_targets, losses_cfg):
+    '''calculatesegloss'''
+    def calculatesegloss(self, seg_logits, seg_targets, losses_cfg):
         loss = 0
         for loss_type, loss_cfg in losses_cfg.items():
             loss_cfg = loss_cfg.copy()
             loss_cfg['type'] = loss_type
             loss += BuildLoss(loss_cfg)(prediction=seg_logits, target=seg_targets)
-        return loss
-    '''calculatelosses'''
-    def calculatelosses(self, seg_logits, seg_targets, losses_cfgs):
+        return loss.mean()
+    '''calculateseglosses'''
+    def calculateseglosses(self, seg_logits, seg_targets, losses_cfgs):
+        # interpolate seg_logits
+        if seg_logits.shape[-2:] != seg_targets.shape[-2:]:
+            seg_logits = F.interpolate(seg_logits, size=seg_targets.shape[-2:], mode='bilinear', align_corners=self.align_corners)
         # iter to calculate losses
         losses_log_dict, loss_total = {}, 0
         for losses_name, losses_cfg in losses_cfgs.items():
-            losses_log_dict[losses_name] = self.calculateloss(
+            losses_log_dict[losses_name] = self.calculatesegloss(
                 seg_logits=seg_logits, seg_targets=seg_targets, losses_cfg=losses_cfg
             )
             loss_total += losses_log_dict[losses_name]

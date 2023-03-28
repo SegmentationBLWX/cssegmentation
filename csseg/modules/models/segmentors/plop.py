@@ -11,13 +11,13 @@ from .base import BaseSegmentor
 
 '''PLOPSegmentor'''
 class PLOPSegmentor(BaseSegmentor):
-    def __init__(self, mode, seleced_indices=(0, 1, 2, 3), num_classes_list=[], align_corners=False, encoder_cfg={}, decoder_cfg={}):
+    def __init__(self, seleced_indices=(0, 1, 2, 3), num_known_classes_list=[], align_corners=False, encoder_cfg={}, decoder_cfg={}):
         super(BaseSegmentor, self).__init__(
-            mode=mode, seleced_indices=seleced_indices, num_classes_list=num_classes_list, align_corners=align_corners,
-            encoder_cfg=encoder_cfg, decoder_cfg=decoder_cfg,
+            seleced_indices=seleced_indices, num_known_classes_list=num_known_classes_list, 
+            align_corners=align_corners, encoder_cfg=encoder_cfg, decoder_cfg=decoder_cfg,
         )
     '''forward'''
-    def forward(self, x, seg_targets=None, losses_cfgs=None):
+    def forward(self, x):
         img_size = x.shape[2:]
         # feed to encoder
         encoder_outputs, attentions = self.encoder(x)
@@ -30,13 +30,6 @@ class PLOPSegmentor(BaseSegmentor):
         seg_logits = torch.cat(seg_logits, dim=1)
         # construct outputs
         outputs = {'seg_logits': seg_logits, 'attentions': attentions + [decoder_outputs]}
-        # calculate segmentation losses if `mode` is 'TRAIN'
-        if self.mode == 'TRAIN':
-            seg_logits = F.interpolate(seg_logits, size=img_size, mode='bilinear', align_corners=False)
-            loss_total, losses_log_dict = self.calculatelosses(seg_logits, seg_targets, losses_cfgs)
-            outputs.update({
-                'loss_total': loss_total, 'losses_log_dict': losses_log_dict
-            })
         # return
         return outputs
     '''initaddedclassifier'''

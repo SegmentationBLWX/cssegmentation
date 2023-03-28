@@ -1,6 +1,6 @@
 '''initialize'''
 from .runners import BuildRunner
-from .datasets import BuildDataset
+from .datasets import BuildDataset, SegmentationEvaluator
 from .parallel import BuildDistributedDataloader, BuildDistributedModel
 from .utils import (
     Logger, setrandomseed, saveckpts, loadckpts, touchdir, saveaspickle, loadpicklefile
