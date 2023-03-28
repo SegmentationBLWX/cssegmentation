@@ -10,7 +10,7 @@ from .rcil import RCILRunner
 
 
 '''BuildRunner'''
-def BuildRunner(cmd_args, runner_cfg):
+def BuildRunner(mode, cmd_args, runner_cfg):
     runner_cfg = copy.deepcopy(runner_cfg)
     # supported runners
     supported_runners = {
@@ -19,6 +19,6 @@ def BuildRunner(cmd_args, runner_cfg):
     }
     # parse
     runner_type = runner_cfg.pop('type')
-    runner = supported_runners[runner_type](cmd_args=cmd_args, runner_cfg=runner_cfg)
+    runner = supported_runners[runner_type](mode=mode, cmd_args=cmd_args, runner_cfg=runner_cfg)
     # return
     return runner

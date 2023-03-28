@@ -9,7 +9,7 @@ import warnings
 import argparse
 import torch.distributed as dist
 from configs import BuildConfig
-from modules import BuildRunner, BuildDataset
+from modules import BuildRunner
 warnings.filterwarnings('ignore')
 
 
@@ -35,7 +35,7 @@ class Trainer():
         torch.cuda.set_device(cmd_args.local_rank)
         for task_id in range(runner_cfg['num_tasks']):
             runner_cfg['task_id'] = task_id
-            runner_client = BuildRunner(cmd_args=cmd_args, runner_cfg=runner_cfg)
+            runner_client = BuildRunner(mode='TRAIN', cmd_args=cmd_args, runner_cfg=runner_cfg)
             runner_client.start()
 
 

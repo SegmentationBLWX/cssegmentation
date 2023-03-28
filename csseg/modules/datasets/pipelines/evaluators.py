@@ -24,7 +24,7 @@ class SegmentationEvaluator():
         confusion_matrix = torch.tensor(self.confusion_matrix).to(device)
         total_samples = torch.tensor(self.total_samples).to(device)
         dist.reduce(confusion_matrix, dst=0)
-        dist.reduce(samples, dst=0)
+        dist.reduce(total_samples, dst=0)
         self.confusion_matrix = confusion_matrix.cpu().numpy()
         self.total_samples = total_samples.cpu().numpy()
     '''update'''

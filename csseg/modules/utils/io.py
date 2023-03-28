@@ -47,3 +47,11 @@ def loadpicklefile(filepath):
     with open(filepath, 'rb') as handle:
         data = pickle.load(handle)
     return data
+
+
+'''symlink'''
+def symlink(src_path, dst_path):
+    if os.path.exists(dst_path):
+        os.unlink(dst_path)
+    os.symlink(src_path, dst_path)
+    return True

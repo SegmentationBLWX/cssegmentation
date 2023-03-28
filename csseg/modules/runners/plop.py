@@ -17,9 +17,9 @@ from .base import BaseRunner
 
 '''PLOPRunner'''
 class PLOPRunner(BaseRunner):
-    def __init__(self, cmd_args, runner_cfg):
+    def __init__(self, mode, cmd_args, runner_cfg):
         super(PLOPRunner, self).__init__(
-            cmd_args=cmd_args, runner_cfg=runner_cfg
+            mode=mode, cmd_args=cmd_args, runner_cfg=runner_cfg
         )
     '''train'''
     def train(self, cur_epoch):
@@ -80,10 +80,7 @@ class PLOPRunner(BaseRunner):
                 )
             # --merge two losses
             loss_total = pod_total_loss + seg_total_loss
-            losses_log_dict = {
-                'algorithm': self.runner_cfg['algorithm'], 'task_id': self.runner_cfg['task_id'],
-                'epoch': self.scheduler.cur_epoch, 'iteration': self.scheduler.cur_lr,
-            }
+            losses_log_dict = dict()
             losses_log_dict.update(seg_losses_log_dict)
             losses_log_dict.update(pod_losses_log_dict)
             losses_log_dict['loss_total'] = loss_total.item()
@@ -92,6 +89,10 @@ class PLOPRunner(BaseRunner):
                 scaled_loss_total.backward()
             self.scheduler.step()
             # --logging training loss info
+            losses_log_dict.update({
+                'algorithm': self.runner_cfg['algorithm'], 'task_id': self.runner_cfg['task_id'],
+                'epoch': self.scheduler.cur_epoch, 'iteration': self.scheduler.cur_iter, 'lr': self.scheduler.cur_lr
+            })
             if (self.scheduler.cur_iter % self.log_interval_iterations == 0) and (self.cmd_args.local_rank == 0):
                 self.logger_handle.info(losses_log_dict)
     '''findmedianforpseudolabeling'''

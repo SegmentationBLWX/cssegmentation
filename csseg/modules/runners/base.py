@@ -13,15 +13,18 @@ from apex import amp
 from tqdm import tqdm
 from ..datasets import BuildDataset, SegmentationEvaluator
 from ..models import BuildSegmentor, BuildOptimizer, BuildScheduler
-from ..utils import Logger, touchdir, loadckpts, saveckpts, saveaspickle
 from ..parallel import BuildDistributedDataloader, BuildDistributedModel
+from ..utils import Logger, touchdir, loadckpts, saveckpts, saveaspickle, symlink
 
 
 '''BaseRunner'''
 class BaseRunner(nn.Module):
-    def __init__(self, cmd_args, runner_cfg):
+    def __init__(self, mode, cmd_args, runner_cfg):
         super(BaseRunner, self).__init__()
+        # assert
+        assert mode in ['TRAIN', 'TEST']
         # set attributes
+        self.mode = mode
         self.best_score = 0
         self.cmd_args = cmd_args
         self.runner_cfg = runner_cfg
@@ -79,7 +82,7 @@ class BaseRunner(nn.Module):
             self.history_segmentor = BuildDistributedModel(model=self.history_segmentor, model_cfg={})
         self.segmentor = BuildDistributedModel(model=self.segmentor, model_cfg={'delay_allreduce': True})
         # load history checkpoints
-        if self.history_segmentor is not None:
+        if self.history_segmentor is not None and mode == 'TRAIN':
             history_task_work_dir = os.path.join(runner_cfg['work_dir'], f'task_{runner_cfg["task_id"] - 1}')
             ckpts = loadckpts(os.path.join(history_task_work_dir, 'best.pth'))
             self.segmentor.load_state_dict(ckpts['segmentor'], strict=False)
@@ -90,7 +93,7 @@ class BaseRunner(nn.Module):
                 param.requires_grad = False
             self.history_segmentor.eval()
         # load current checkpoints
-        if os.path.exists(os.path.join(self.task_work_dir, 'latest.pth')):
+        if os.path.exists(os.path.join(self.task_work_dir, 'latest.pth')) and mode == 'TRAIN':
             ckpts = loadckpts(os.path.join(self.task_work_dir, 'latest.pth'))
             self.segmentor.load_state_dict(ckpts['segmentor'], strict=True)
             self.optimizer.load_state_dict(ckpts['optimizer'])
@@ -106,15 +109,17 @@ class BaseRunner(nn.Module):
             if ((cur_epoch % self.save_interval_epochs == 0) or (cur_epoch == self.scheduler.max_epochs)) and (self.cmd_args.local_rank == 0):
                 ckpt_path = os.path.join(self.task_work_dir, f'epoch_{cur_epoch}.pth')
                 saveckpts(ckpts=self.state(), savepath=ckpt_path)
-                os.symlink(ckpt_path, os.path.join(self.task_work_dir, 'latest.pth'))
+                symlink(ckpt_path, os.path.join(self.task_work_dir, 'latest.pth'))
             if (cur_epoch % self.eval_interval_epochs == 0) or (cur_epoch == self.scheduler.max_epochs):
                 results = self.test(cur_epoch=cur_epoch)
                 if self.cmd_args.local_rank == 0:
                     ckpt_path = os.path.join(self.task_work_dir, f'epoch_{cur_epoch}.pth')
                     if self.best_score <= results[self.choose_best_segmentor_by_metric]:
                         self.best_score = results[self.choose_best_segmentor_by_metric]
-                        os.symlink(ckpt_path, os.path.join(self.task_work_dir, 'best.pth'))
+                        symlink(ckpt_path, os.path.join(self.task_work_dir, 'best.pth'))
                         saveaspickle(results, os.path.join(self.task_work_dir, 'best.pkl'))
+                if self.cmd_args.local_rank == 0:
+                    self.logger_handle.info(results)
     '''train'''
     def train(self, cur_epoch):
         raise NotImplementedError('not to be implemented')
@@ -128,12 +133,14 @@ class BaseRunner(nn.Module):
             if self.cmd_args.local_rank == 0:
                 test_loader = tqdm(self.test_loader)
                 test_loader.set_description('Evaluating')
+            else:
+                test_loader = self.test_loader
             for batch_idx, data_meta in enumerate(test_loader):
                 images = data_meta['image'].to(self.device, dtype=torch.float32)
                 targets = data_meta['target'].to(self.device, dtype=torch.long)
                 seg_logits = self.segmentor(images)['seg_logits']
                 seg_logits = F.interpolate(seg_logits, size=targets.shape[-2:], mode='bilinear', align_corners=self.segmentor.module.align_corners)
-                seg_preds = outputs.max(dim=1)[-1]
+                seg_preds = seg_logits.max(dim=1)[-1]
                 seg_targets = targets.cpu().numpy()
                 seg_preds = seg_preds.cpu().numpy()
                 seg_evaluator.update(seg_targets=seg_targets, seg_preds=seg_preds)
