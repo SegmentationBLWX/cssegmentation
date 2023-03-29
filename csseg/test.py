@@ -37,10 +37,10 @@ class Tester():
         runner_cfg['task_id'] = runner_cfg['num_tasks'] - 1
         runner_client = BuildRunner(mode='TEST', cmd_args=cmd_args, runner_cfg=runner_cfg)
         ckpts = loadckpts(cmd_args.ckptspath)
-        runner_client.module.segmentor.load_state_dict(ckpts['segmentor'], strict=True)
+        runner_client.segmentor.load_state_dict(ckpts['segmentor'], strict=True)
         results = runner_client.test(cur_epoch=ckpts['cur_epoch'])
         if cmd_args.local_rank == 0:
-            runner_client.module.logger_handle.info(results)
+            runner_client.logger_handle.info(results)
 
 
 '''main'''

@@ -34,7 +34,6 @@ class Trainer():
         cmd_args, runner_cfg = self.cmd_args, self.cfg.RUNNER_CFG
         dist.init_process_group(backend=runner_cfg['PARALLEL_CFG']['backend'], init_method=runner_cfg['PARALLEL_CFG']['init_method'])
         torch.cuda.set_device(cmd_args.local_rank)
-        assert runner_cfg['num_tasks'] > cmd_args.starttaskid + 1
         for task_id in range(cmd_args.starttaskid, runner_cfg['num_tasks']):
             runner_cfg['task_id'] = task_id
             runner_client = BuildRunner(mode='TRAIN', cmd_args=cmd_args, runner_cfg=runner_cfg)

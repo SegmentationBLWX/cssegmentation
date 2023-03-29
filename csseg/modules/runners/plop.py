@@ -89,8 +89,8 @@ class PLOPRunner(BaseRunner):
                 'algorithm': self.runner_cfg['algorithm'], 'task_id': self.runner_cfg['task_id'],
                 'epoch': self.scheduler.cur_epoch, 'iteration': self.scheduler.cur_iter, 'lr': self.scheduler.cur_lr
             }
-            losses_log_dict.update(seg_losses_log_dict)
             losses_log_dict.update(pod_losses_log_dict)
+            losses_log_dict.update(seg_losses_log_dict)
             losses_log_dict['loss_total'] = loss_total.item()
             if (self.scheduler.cur_iter % self.log_interval_iterations == 0) and (self.cmd_args.local_rank == 0):
                 self.logger_handle.info(losses_log_dict)

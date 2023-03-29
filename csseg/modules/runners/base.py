@@ -14,7 +14,7 @@ from tqdm import tqdm
 from ..datasets import BuildDataset, SegmentationEvaluator
 from ..models import BuildSegmentor, BuildOptimizer, BuildScheduler
 from ..parallel import BuildDistributedDataloader, BuildDistributedModel
-from ..utils import Logger, touchdir, loadckpts, saveckpts, saveaspickle, symlink
+from ..utils import Logger, touchdir, loadckpts, saveckpts, saveaspickle, symlink, loadpicklefile
 
 
 '''BaseRunner'''
@@ -43,43 +43,48 @@ class BaseRunner(nn.Module):
         self.logger_handle = Logger(logfilepath=runner_cfg['logfilepath'])
         # build datasets
         dataset_cfg = runner_cfg['DATASET_CFG']
-        train_set = BuildDataset(mode='TRAIN', task_name=runner_cfg['task_name'], task_id=runner_cfg['task_id'], dataset_cfg=dataset_cfg)
+        train_set = BuildDataset(mode='TRAIN', task_name=runner_cfg['task_name'], task_id=runner_cfg['task_id'], dataset_cfg=dataset_cfg) if mode == 'TRAIN' else None
         test_set = BuildDataset(mode='TEST', task_name=runner_cfg['task_name'], task_id=runner_cfg['task_id'], dataset_cfg=dataset_cfg)
-        assert runner_cfg['num_total_classes'] == train_set.num_classes
+        assert (runner_cfg['num_total_classes'] == train_set.num_classes if mode == 'TRAIN' else True)
         assert runner_cfg['num_total_classes'] == test_set.num_classes
         # build dataloaders
         dataloader_cfg = runner_cfg['DATALOADER_CFG']
-        self.train_loader = BuildDistributedDataloader(dataset=train_set, dataloader_cfg=dataloader_cfg)
+        self.train_loader = BuildDistributedDataloader(dataset=train_set, dataloader_cfg=dataloader_cfg) if mode == 'TRAIN' else None
         self.test_loader = BuildDistributedDataloader(dataset=test_set, dataloader_cfg=dataloader_cfg)
         # build segmentor
         segmentor_cfg = runner_cfg['SEGMENTOR_CFG']
-        segmentor_cfg['num_known_classes_list'] = train_set.getnumclassespertask(runner_cfg['task_name'], train_set.tasks, runner_cfg['task_id'])
+        segmentor_cfg['num_known_classes_list'] = test_set.getnumclassespertask(runner_cfg['task_name'], test_set.tasks, runner_cfg['task_id'])
         self.segmentor = BuildSegmentor(segmentor_cfg=segmentor_cfg)
-        if runner_cfg['task_id'] > 0:
+        if runner_cfg['task_id'] > 0 and mode == 'TRAIN':
             history_segmentor_cfg = copy.deepcopy(segmentor_cfg)
             history_segmentor_cfg['num_known_classes_list'] = segmentor_cfg['num_known_classes_list'][:-1]
             self.history_segmentor = BuildSegmentor(segmentor_cfg=history_segmentor_cfg)
         else:
             self.history_segmentor = None
         # build optimizer
-        scheduler_cfg = runner_cfg['SCHEDULER_CFGS'][runner_cfg['task_id']]
-        scheduler_cfg['max_iters'] = len(self.train_loader) * scheduler_cfg['max_epochs']
-        optimizer_cfg = runner_cfg['OPTIMIZER_CFG']
-        optimizer_cfg['lr'] = scheduler_cfg['lr']
-        self.optimizer = BuildOptimizer(model=self.segmentor, optimizer_cfg=optimizer_cfg)
+        if mode == 'TRAIN':
+            scheduler_cfg = runner_cfg['SCHEDULER_CFGS'][runner_cfg['task_id']]
+            scheduler_cfg['max_iters'] = len(self.train_loader) * scheduler_cfg['max_epochs']
+            optimizer_cfg = runner_cfg['OPTIMIZER_CFG']
+            optimizer_cfg['lr'] = scheduler_cfg['lr']
+            self.optimizer = BuildOptimizer(model=self.segmentor, optimizer_cfg=optimizer_cfg)
+        else:
+            self.optimizer = None
         # build scheduler
-        self.scheduler = BuildScheduler(optimizer=self.optimizer, scheduler_cfg=scheduler_cfg)
+        self.scheduler = BuildScheduler(optimizer=self.optimizer, scheduler_cfg=scheduler_cfg) if mode == 'TRAIN' else None
         # parallel segmentor
         parallel_cfg = runner_cfg['PARALLEL_CFG']
-        if self.history_segmentor is None:
+        if self.history_segmentor is None and mode == 'TRAIN':
             self.segmentor, self.optimizer = amp.initialize(
                 self.segmentor.to(self.device), self.optimizer, opt_level=parallel_cfg['opt_level']
             )
-        else:
+        elif mode == 'TRAIN':
             [self.segmentor, self.history_segmentor], self.optimizer = amp.initialize(
                 [self.segmentor.to(self.device), self.history_segmentor.to(self.device)], self.optimizer, opt_level=parallel_cfg['opt_level']
             )
             self.history_segmentor = BuildDistributedModel(model=self.history_segmentor, model_cfg={})
+        else:
+            self.segmentor = self.segmentor.to(self.device)
         self.segmentor = BuildDistributedModel(model=self.segmentor, model_cfg={'delay_allreduce': True})
         # load history checkpoints
         if self.history_segmentor is not None and mode == 'TRAIN':
@@ -120,6 +125,9 @@ class BaseRunner(nn.Module):
                         symlink(ckpt_path, os.path.join(self.task_work_dir, 'best.pth'))
                         saveaspickle(results, os.path.join(self.task_work_dir, 'best.pkl'))
                     self.logger_handle.info(results)
+        if self.cmd_args.local_rank == 0:
+            best_results = loadpicklefile(os.path.join(self.task_work_dir, 'best.pkl'))
+            self.logger_handle.info(f'Best Result at Task {self.runner_cfg["task_id"]}: \n{best_results}')
     '''train'''
     def train(self, cur_epoch):
         raise NotImplementedError('not to be implemented')
