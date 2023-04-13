@@ -7,6 +7,7 @@ Author:
 import os
 import copy
 import torch
+import random
 import torch.nn as nn
 import torch.nn.functional as F
 from apex import amp
@@ -14,13 +15,12 @@ from tqdm import tqdm
 from ..datasets import BuildDataset, SegmentationEvaluator
 from ..models import BuildSegmentor, BuildOptimizer, BuildScheduler
 from ..parallel import BuildDistributedDataloader, BuildDistributedModel
-from ..utils import Logger, touchdir, loadckpts, saveckpts, saveaspickle, symlink, loadpicklefile
+from ..utils import Logger, touchdir, loadckpts, saveckpts, saveaspickle, symlink, loadpicklefile, setrandomseed
 
 
 '''BaseRunner'''
-class BaseRunner(nn.Module):
+class BaseRunner():
     def __init__(self, mode, cmd_args, runner_cfg):
-        super(BaseRunner, self).__init__()
         # assert
         assert mode in ['TRAIN', 'TEST']
         # set attributes
@@ -42,18 +42,23 @@ class BaseRunner(nn.Module):
         # build logger handle
         self.logger_handle = Logger(logfilepath=runner_cfg['logfilepath'])
         # build datasets
+        setrandomseed(runner_cfg['random_seed'])
         dataset_cfg = runner_cfg['DATASET_CFG']
         train_set = BuildDataset(mode='TRAIN', task_name=runner_cfg['task_name'], task_id=runner_cfg['task_id'], dataset_cfg=dataset_cfg) if mode == 'TRAIN' else None
         test_set = BuildDataset(mode='TEST', task_name=runner_cfg['task_name'], task_id=runner_cfg['task_id'], dataset_cfg=dataset_cfg)
         assert (runner_cfg['num_total_classes'] == train_set.num_classes if mode == 'TRAIN' else True)
         assert runner_cfg['num_total_classes'] == test_set.num_classes
+        random.seed(runner_cfg['random_seed'])
         # build dataloaders
         dataloader_cfg = runner_cfg['DATALOADER_CFG']
         self.train_loader = BuildDistributedDataloader(dataset=train_set, dataloader_cfg=dataloader_cfg) if mode == 'TRAIN' else None
         self.test_loader = BuildDistributedDataloader(dataset=test_set, dataloader_cfg=dataloader_cfg)
         # build segmentor
         segmentor_cfg = runner_cfg['SEGMENTOR_CFG']
-        segmentor_cfg['num_known_classes_list'] = test_set.getnumclassespertask(runner_cfg['task_name'], test_set.tasks, runner_cfg['task_id'])
+        if train_set is None:
+            segmentor_cfg['num_known_classes_list'] = test_set.getnumclassespertask(runner_cfg['task_name'], test_set.tasks, runner_cfg['task_id'])
+        else:
+            segmentor_cfg['num_known_classes_list'] = train_set.getnumclassespertask(runner_cfg['task_name'], train_set.tasks, runner_cfg['task_id'])
         self.segmentor = BuildSegmentor(segmentor_cfg=segmentor_cfg)
         if runner_cfg['task_id'] > 0 and mode == 'TRAIN':
             history_segmentor_cfg = copy.deepcopy(segmentor_cfg)
@@ -65,7 +70,7 @@ class BaseRunner(nn.Module):
         if mode == 'TRAIN':
             scheduler_cfg = runner_cfg['SCHEDULER_CFGS'][runner_cfg['task_id']]
             scheduler_cfg['max_iters'] = len(self.train_loader) * scheduler_cfg['max_epochs']
-            optimizer_cfg = runner_cfg['OPTIMIZER_CFG']
+            optimizer_cfg = runner_cfg['OPTIMIZER_CFGS'][runner_cfg['task_id']]
             optimizer_cfg['lr'] = scheduler_cfg['lr']
             self.optimizer = BuildOptimizer(model=self.segmentor, optimizer_cfg=optimizer_cfg)
         else:
@@ -109,6 +114,7 @@ class BaseRunner(nn.Module):
         if self.cmd_args.local_rank == 0:
             self.logger_handle.info(f'Load Config From: {self.cmd_args.cfgfilepath}')
             self.logger_handle.info(f'Config Details: \n{self.runner_cfg}')
+        self.preparefortrain()
         for cur_epoch in range(self.scheduler.cur_epoch, self.scheduler.max_epochs+1):
             self.train(cur_epoch=cur_epoch)
             self.scheduler.cur_epoch += 1
@@ -128,6 +134,9 @@ class BaseRunner(nn.Module):
         if self.cmd_args.local_rank == 0:
             best_results = loadpicklefile(os.path.join(self.task_work_dir, 'best.pkl'))
             self.logger_handle.info(f'Best Result at Task {self.runner_cfg["task_id"]}: \n{best_results}')
+    '''preparefortrain'''
+    def preparefortrain(self):
+        pass
     '''train'''
     def train(self, cur_epoch):
         raise NotImplementedError('not to be implemented')

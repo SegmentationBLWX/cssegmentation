@@ -10,6 +10,14 @@ RUNNER_CFG['DATASET_CFG'].update({
     'overlap': True,
 })
 RUNNER_CFG['DATASET_CFG']['train']['set'] = 'trainaug'
+# modify OPTIMIZER_CFGS
+RUNNER_CFG['OPTIMIZER_CFGS'] = [{
+    'constructor_cfg': {'type': 'DefaultParamsConstructor', 'filter_params': True, 'paramwise_cfg': None},
+    'type': 'SGD',
+    'momentum': 0.9, 
+    'nesterov': True,
+    'weight_decay': 1e-4,
+} for _ in range(6)]
 # modify SCHEDULER_CFGS
 RUNNER_CFG['SCHEDULER_CFGS'] = [
     {'type': 'PolyScheduler', 'max_iters': -1, 'max_epochs': 30, 'lr': 0.01, 'min_lr': 0.0, 'power': 0.9},

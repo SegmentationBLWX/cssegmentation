@@ -21,6 +21,10 @@ class PLOPRunner(BaseRunner):
         super(PLOPRunner, self).__init__(
             mode=mode, cmd_args=cmd_args, runner_cfg=runner_cfg
         )
+    '''preparefortrain'''
+    def preparefortrain(self):
+        if self.history_segmentor is not None:
+            self.thresholds, self.max_entropy = self.findmedianforpseudolabeling()
     '''train'''
     def train(self, cur_epoch):
         # logging start task info
@@ -28,10 +32,15 @@ class PLOPRunner(BaseRunner):
             self.logger_handle.info(f'Start to train {self.runner_cfg["algorithm"]} at Task {self.runner_cfg["task_id"]}, Epoch {cur_epoch}')
         # initialize
         losses_cfgs = self.runner_cfg['LOSSES_CFGS']
+        init_losses_log_dict = {
+            'algorithm': self.runner_cfg['algorithm'], 'task_id': self.runner_cfg['task_id'],
+            'epoch': self.scheduler.cur_epoch, 'iteration': self.scheduler.cur_iter, 'lr': self.scheduler.cur_lr
+        }
+        losses_log_dict = copy.deepcopy(init_losses_log_dict)
         self.segmentor.train()
         self.train_loader.sampler.set_epoch(cur_epoch)
         if self.history_segmentor is not None:
-            thresholds, max_entropy = self.findmedianforpseudolabeling()
+            thresholds, max_entropy = self.thresholds, self.max_entropy
         # start to iter
         for batch_idx, data_meta in enumerate(self.train_loader):
             # --fetch data
@@ -85,15 +94,26 @@ class PLOPRunner(BaseRunner):
                 scaled_loss_total.backward()
             self.scheduler.step()
             # --logging training loss info
-            losses_log_dict = {
-                'algorithm': self.runner_cfg['algorithm'], 'task_id': self.runner_cfg['task_id'],
+            seg_losses_log_dict.update(pod_losses_log_dict)
+            seg_losses_log_dict.pop('loss_total')
+            for key, value in seg_losses_log_dict.items():
+                if key in losses_log_dict:
+                    losses_log_dict[key].append(value)
+                else:
+                    losses_log_dict[key] = [value]
+            if 'loss_total' in losses_log_dict:
+                losses_log_dict['loss_total'].append(loss_total.item())
+            else:
+                losses_log_dict['loss_total'] = [loss_total.item()]
+            losses_log_dict.update({
                 'epoch': self.scheduler.cur_epoch, 'iteration': self.scheduler.cur_iter, 'lr': self.scheduler.cur_lr
-            }
-            losses_log_dict.update(pod_losses_log_dict)
-            losses_log_dict.update(seg_losses_log_dict)
-            losses_log_dict['loss_total'] = loss_total.item()
+            })
             if (self.scheduler.cur_iter % self.log_interval_iterations == 0) and (self.cmd_args.local_rank == 0):
+                for key, value in losses_log_dict.copy().items():
+                    if isinstance(value, list):
+                        losses_log_dict[key] = sum(value) / len(value)
                 self.logger_handle.info(losses_log_dict)
+                losses_log_dict = copy.deepcopy(init_losses_log_dict)
     '''findmedianforpseudolabeling'''
     def findmedianforpseudolabeling(self):
         # initialize

@@ -54,14 +54,14 @@ SEGMENTOR_CFG = {
         'act_cfg': None,
     },
 }
-# OPTIMIZER_CFG
-OPTIMIZER_CFG = {
+# OPTIMIZER_CFGS
+OPTIMIZER_CFGS = [{
     'constructor_cfg': {'type': 'DefaultParamsConstructor', 'filter_params': True, 'paramwise_cfg': None},
     'type': 'SGD',
     'momentum': 0.9, 
     'nesterov': True,
-    'weight_decay': 0
-}
+    'weight_decay': 1e-4,
+}]
 # SCHEDULER_CFGS
 SCHEDULER_CFGS = [{
     'type': 'PolyScheduler',
@@ -85,7 +85,7 @@ LOSSES_CFGS = {
 # RUNNER_CFG
 RUNNER_CFG = {
     'DATASET_CFG': DATASET_CFG, 'DATALOADER_CFG': DATALOADER_CFG, 'SEGMENTOR_CFG': SEGMENTOR_CFG,
-    'OPTIMIZER_CFG': OPTIMIZER_CFG, 'SCHEDULER_CFGS': SCHEDULER_CFGS, 'PARALLEL_CFG': PARALLEL_CFG,
+    'OPTIMIZER_CFGS': OPTIMIZER_CFGS, 'SCHEDULER_CFGS': SCHEDULER_CFGS, 'PARALLEL_CFG': PARALLEL_CFG,
     'LOSSES_CFGS': LOSSES_CFGS,
 }
 RUNNER_CFG.update({
@@ -102,4 +102,5 @@ RUNNER_CFG.update({
     'logfilepath': '',
     'num_total_classes': -1,
     'pseudolabeling_minimal_threshold': 0.001,
+    'random_seed': 42,
 })
