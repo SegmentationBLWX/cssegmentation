@@ -94,7 +94,7 @@ class BaseRunner():
         # load history checkpoints
         if self.history_segmentor is not None and mode == 'TRAIN':
             history_task_work_dir = os.path.join(runner_cfg['work_dir'], f'task_{runner_cfg["task_id"] - 1}')
-            ckpts = loadckpts(os.path.join(history_task_work_dir, 'best.pth'))
+            ckpts = loadckpts(os.path.join(history_task_work_dir, 'latest.pth'))
             self.segmentor.load_state_dict(ckpts['segmentor'], strict=False)
             if hasattr(self.segmentor.module, 'initaddedclassifier'):
                 self.segmentor.module.initaddedclassifier(device=self.device)
