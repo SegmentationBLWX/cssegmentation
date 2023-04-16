@@ -51,12 +51,15 @@ class PLOPRunner(BaseRunner):
             classifier_adaptive_factor = 1.0
             if self.history_segmentor is not None:
                 num_history_known_classes = functools.reduce(lambda a, b: a + b, self.runner_cfg['SEGMENTOR_CFG']['num_known_classes_list'][:-1])
-                history_outputs = self.history_segmentor(images)
+                with torch.no_grad():
+                    history_outputs = self.history_segmentor(images)
+                    history_attentions = history_outputs['attentions']
+                    history_attentions.append(outputs['seg_logits'])
+                    history_seg_logits = F.interpolate(history_outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners)
                 background_mask = (targets < num_history_known_classes)
-                history_seg_logits = F.interpolate(history_outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners)
-                seg_probs = torch.softmax(history_seg_logits, dim=1)
-                max_seg_probs, pseudo_labels = seg_probs.max(dim=1)
-                valid_pseudo_mask = (self.entropy(seg_probs) / max_entropy) < thresholds[pseudo_labels]
+                history_seg_probs = torch.softmax(history_seg_logits, dim=1)
+                max_history_seg_probs, pseudo_labels = history_seg_probs.max(dim=1)
+                valid_pseudo_mask = (self.entropy(history_seg_probs) / max_entropy) < thresholds[pseudo_labels]
                 seg_targets[~valid_pseudo_mask & background_mask] = 255
                 seg_targets[valid_pseudo_mask & background_mask] = pseudo_labels[valid_pseudo_mask & background_mask]
                 classifier_adaptive_factor = (valid_pseudo_mask & background_mask).float().sum(dim=(1, 2)) / (background_mask.float().sum(dim=(1, 2)) + self.eps)
@@ -78,9 +81,8 @@ class PLOPRunner(BaseRunner):
             # --calculate distillatio losses
             pod_total_loss, pod_losses_log_dict = 0, {}
             if self.history_segmentor is not None:
-                attentions, history_attentions = outputs['attentions'], history_outputs['attentions']
+                attentions = outputs['attentions']
                 attentions.append(outputs['seg_logits'])
-                history_attentions.append(outputs['seg_logits'])
                 pod_total_loss, pod_losses_log_dict = self.featuresdistillation(
                     history_attentions=history_attentions, 
                     attentions=attentions,
