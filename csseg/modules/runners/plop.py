@@ -54,7 +54,7 @@ class PLOPRunner(BaseRunner):
                 with torch.no_grad():
                     history_outputs = self.history_segmentor(images)
                     history_attentions = history_outputs['attentions']
-                    history_attentions.append(outputs['seg_logits'])
+                    history_attentions.append(history_outputs['seg_logits'])
                     history_seg_logits = F.interpolate(history_outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners)
                 background_mask = (targets < num_history_known_classes)
                 history_seg_probs = torch.softmax(history_seg_logits, dim=1)
