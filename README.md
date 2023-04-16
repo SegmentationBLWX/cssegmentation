@@ -52,7 +52,7 @@ You can star this repository to keep track of the project if it's helpful for yo
 
 #### Supported Runner
 
-- [PLOP]()
+- [PLOP](https://github.com/SegmentationBLWX/cssegmentation/tree/main/docs/modelzoo/plop)
 - [RCIL]()
 
 #### Supported Datasets
