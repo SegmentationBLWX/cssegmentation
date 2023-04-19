@@ -33,7 +33,7 @@ You can star this repository to keep track of the project if it's helpful for yo
  
 - **Support of Multiple Methods Out of Box**
 
-  The toolbox directly supports popular and contemporary continual semantic segmentation frameworks, *e.g.*, PLOP, RCIL, etc.
+  The toolbox directly supports popular and contemporary continual semantic segmentation frameworks, *e.g.*, MIB, PLOP, RCIL, etc.
  
 - **High Performance**
 
@@ -52,6 +52,7 @@ You can star this repository to keep track of the project if it's helpful for yo
 
 #### Supported Runner
 
+- [MIB](https://github.com/SegmentationBLWX/cssegmentation/tree/main/docs/modelzoo/mib)
 - [PLOP](https://github.com/SegmentationBLWX/cssegmentation/tree/main/docs/modelzoo/plop)
 - [RCIL]()
 

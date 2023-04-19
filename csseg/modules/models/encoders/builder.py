@@ -6,6 +6,7 @@ Author:
 '''
 import copy
 from .resnet import ResNet
+from .resnetmib import ResNetMIB
 from .resnetplop import ResNetPLOP
 
 
@@ -15,6 +16,7 @@ def BuildEncoder(encoder_cfg):
     # supported encoders
     supported_encoders = {
         'ResNet': ResNet,
+        'ResNetMIB': ResNetMIB,
         'ResNetPLOP': ResNetPLOP,
     }
     # parse

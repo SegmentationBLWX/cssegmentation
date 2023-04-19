@@ -84,7 +84,6 @@ class ResNetPLOP(ResNet):
         x2, attention2 = self.layer2(x1)
         x3, attention3 = self.layer3(x2)
         x4, attention4 = self.layer4(x3)
-        outs = []
         for i, feats in enumerate([(x1, attention1), (x2, attention2), (x3, attention3), (x4, attention4)]):
             if i in self.out_indices: 
                 outs.append(feats[0])
