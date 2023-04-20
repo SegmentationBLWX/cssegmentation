@@ -33,7 +33,7 @@ DATALOADER_CFG = {
 SEGMENTOR_CFG = {
     'type': 'MIBSegmentor',
     'num_known_classes_list': None,
-    'selected_indices': (3,), 
+    'selected_indices': (0,), 
     'align_corners': False, 
     'encoder_cfg': {
         'type': 'ResNetMIB',
@@ -79,7 +79,9 @@ PARALLEL_CFG = {
 }
 # LOSSES_CFGS
 LOSSES_CFGS = {
-    'segmentation': {'loss_seg': {'CrossEntropyLoss': {'scale_factor': 1.0, 'reduction': 'mean', 'ignore_index': 255}}},
+    'segmentation': [
+        {'loss_seg': {'CrossEntropyLoss': {'scale_factor': 1.0, 'reduction': 'mean', 'ignore_index': 255}}},
+    ],
     'distillation': {'scale_factor': 10, 'alpha': 1.0},
 }
 # RUNNER_CFG
@@ -101,6 +103,5 @@ RUNNER_CFG.update({
     'choose_best_segmentor_by_metric': 'mean_iou',
     'logfilepath': '',
     'num_total_classes': -1,
-    'pseudolabeling_minimal_threshold': 0.001,
     'random_seed': 42,
 })

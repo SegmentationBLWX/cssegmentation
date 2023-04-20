@@ -6,6 +6,7 @@ Author:
 '''
 import copy
 import torch
+import functools
 import torch.nn.functional as F
 import torch.distributed as dist
 from apex import amp
@@ -47,7 +48,12 @@ class MIBRunner(BaseRunner):
             # --forward to segmentor
             outputs = self.segmentor(images)
             # --calculate segmentation losses
-            seg_losses_cfgs = copy.deepcopy(losses_cfgs['segmentation'])
+            seg_losses_cfgs = copy.deepcopy(losses_cfgs['segmentation'][self.runner_cfg['task_id']])
+            if self.history_segmentor is not None:
+                num_history_known_classes = functools.reduce(lambda a, b: a + b, self.runner_cfg['SEGMENTOR_CFG']['num_known_classes_list'][:-1])
+                for _, seg_losses_cfg in seg_losses_cfgs.items():
+                    for loss_type, loss_cfg in seg_losses_cfg.items():
+                        loss_cfg.update({'num_history_known_classes': num_history_known_classes, 'reduction': 'none'})
             seg_total_loss, seg_losses_log_dict = self.segmentor.module.calculateseglosses(
                 seg_logits=outputs['seg_logits'], 
                 seg_targets=seg_targets, 

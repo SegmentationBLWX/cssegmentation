@@ -6,8 +6,8 @@ Author:
 '''
 import copy
 from .klloss import KLDivLoss
-from .celoss import CrossEntropyLoss
 from .csloss import CosineSimilarityLoss
+from .celoss import CrossEntropyLoss, MIBUnbiasedCrossEntropyLoss
 
 
 '''BuildLoss'''
@@ -18,6 +18,7 @@ def BuildLoss(loss_cfg):
         'KLDivLoss': KLDivLoss,
         'CrossEntropyLoss': CrossEntropyLoss,
         'CosineSimilarityLoss': CosineSimilarityLoss,
+        'MIBUnbiasedCrossEntropyLoss': MIBUnbiasedCrossEntropyLoss,
     }
     # parse
     loss_type = loss_cfg.pop('type')
