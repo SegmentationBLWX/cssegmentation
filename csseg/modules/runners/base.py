@@ -103,11 +103,12 @@ class BaseRunner():
                 param.requires_grad = False
             self.history_segmentor.eval()
         # load current checkpoints
-        if os.path.exists(os.path.join(self.task_work_dir, 'latest.pth')) and mode == 'TRAIN':
+        if os.path.islink(os.path.join(self.task_work_dir, 'latest.pth')) and mode == 'TRAIN':
             ckpts = loadckpts(os.path.join(self.task_work_dir, 'latest.pth'))
             self.segmentor.load_state_dict(ckpts['segmentor'], strict=True)
             self.optimizer.load_state_dict(ckpts['optimizer'])
             self.scheduler.load(state_dict=ckpts)
+            amp.load_state_dict(ckpts['amp'])
             self.best_score = ckpts['best_score']
     '''start'''
     def start(self):
@@ -173,5 +174,6 @@ class BaseRunner():
             'optimizer': self.optimizer.state_dict(),
             'iters_per_epoch': len(self.train_loader), 
             'task_id': self.runner_cfg['task_id'],
+            'amp': amp.state_dict(),
         })
         return state_dict
