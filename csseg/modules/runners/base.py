@@ -67,16 +67,19 @@ class BaseRunner():
         else:
             self.history_segmentor = None
         # build optimizer
-        scheduler_cfg = runner_cfg['SCHEDULER_CFGS'][runner_cfg['task_id']]
-        scheduler_cfg['max_iters'] = len(self.train_loader) * scheduler_cfg['max_epochs'] if mode == 'TRAIN' else -1
-        optimizer_cfg = runner_cfg['OPTIMIZER_CFGS'][runner_cfg['task_id']]
-        optimizer_cfg['lr'] = scheduler_cfg['lr']
-        self.optimizer = BuildOptimizer(model=self.segmentor, optimizer_cfg=optimizer_cfg)
+        if mode == 'TRAIN':
+            scheduler_cfg = runner_cfg['SCHEDULER_CFGS'][runner_cfg['task_id']]
+            scheduler_cfg['max_iters'] = len(self.train_loader) * scheduler_cfg['max_epochs']
+            optimizer_cfg = runner_cfg['OPTIMIZER_CFGS'][runner_cfg['task_id']]
+            optimizer_cfg['lr'] = scheduler_cfg['lr']
+            self.optimizer = BuildOptimizer(model=self.segmentor, optimizer_cfg=optimizer_cfg)
+        else:
+            self.optimizer = None
         # build scheduler
         self.scheduler = BuildScheduler(optimizer=self.optimizer, scheduler_cfg=scheduler_cfg) if mode == 'TRAIN' else None
         # parallel segmentor
         parallel_cfg = runner_cfg['PARALLEL_CFG']
-        if (self.history_segmentor is None and mode == 'TRAIN') or mode == 'TEST':
+        if self.history_segmentor is None and mode == 'TRAIN':
             self.segmentor, self.optimizer = amp.initialize(
                 self.segmentor.to(self.device), self.optimizer, opt_level=parallel_cfg['opt_level']
             )
@@ -85,6 +88,8 @@ class BaseRunner():
                 [self.segmentor.to(self.device), self.history_segmentor.to(self.device)], self.optimizer, opt_level=parallel_cfg['opt_level']
             )
             self.history_segmentor = BuildDistributedModel(model=self.history_segmentor, model_cfg={})
+        else:
+            self.segmentor = self.segmentor.to(self.device)
         self.segmentor = BuildDistributedModel(model=self.segmentor, model_cfg={'delay_allreduce': True})
         # load history checkpoints
         if self.history_segmentor is not None and mode == 'TRAIN':
