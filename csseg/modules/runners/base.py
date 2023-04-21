@@ -68,7 +68,7 @@ class BaseRunner():
             self.history_segmentor = None
         # build optimizer
         scheduler_cfg = runner_cfg['SCHEDULER_CFGS'][runner_cfg['task_id']]
-        scheduler_cfg['max_iters'] = len(self.train_loader) * scheduler_cfg['max_epochs']
+        scheduler_cfg['max_iters'] = len(self.train_loader) * scheduler_cfg['max_epochs'] if mode == 'TRAIN' else -1
         optimizer_cfg = runner_cfg['OPTIMIZER_CFGS'][runner_cfg['task_id']]
         optimizer_cfg['lr'] = scheduler_cfg['lr']
         self.optimizer = BuildOptimizer(model=self.segmentor, optimizer_cfg=optimizer_cfg)
