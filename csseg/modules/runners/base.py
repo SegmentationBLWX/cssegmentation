@@ -67,19 +67,16 @@ class BaseRunner():
         else:
             self.history_segmentor = None
         # build optimizer
-        if mode == 'TRAIN':
-            scheduler_cfg = runner_cfg['SCHEDULER_CFGS'][runner_cfg['task_id']]
-            scheduler_cfg['max_iters'] = len(self.train_loader) * scheduler_cfg['max_epochs']
-            optimizer_cfg = runner_cfg['OPTIMIZER_CFGS'][runner_cfg['task_id']]
-            optimizer_cfg['lr'] = scheduler_cfg['lr']
-            self.optimizer = BuildOptimizer(model=self.segmentor, optimizer_cfg=optimizer_cfg)
-        else:
-            self.optimizer = None
+        scheduler_cfg = runner_cfg['SCHEDULER_CFGS'][runner_cfg['task_id']]
+        scheduler_cfg['max_iters'] = len(self.train_loader) * scheduler_cfg['max_epochs']
+        optimizer_cfg = runner_cfg['OPTIMIZER_CFGS'][runner_cfg['task_id']]
+        optimizer_cfg['lr'] = scheduler_cfg['lr']
+        self.optimizer = BuildOptimizer(model=self.segmentor, optimizer_cfg=optimizer_cfg)
         # build scheduler
         self.scheduler = BuildScheduler(optimizer=self.optimizer, scheduler_cfg=scheduler_cfg) if mode == 'TRAIN' else None
         # parallel segmentor
         parallel_cfg = runner_cfg['PARALLEL_CFG']
-        if self.history_segmentor is None and mode == 'TRAIN':
+        if (self.history_segmentor is None and mode == 'TRAIN') or mode == 'TEST':
             self.segmentor, self.optimizer = amp.initialize(
                 self.segmentor.to(self.device), self.optimizer, opt_level=parallel_cfg['opt_level']
             )
@@ -88,8 +85,6 @@ class BaseRunner():
                 [self.segmentor.to(self.device), self.history_segmentor.to(self.device)], self.optimizer, opt_level=parallel_cfg['opt_level']
             )
             self.history_segmentor = BuildDistributedModel(model=self.history_segmentor, model_cfg={})
-        else:
-            self.segmentor = self.segmentor.to(self.device)
         self.segmentor = BuildDistributedModel(model=self.segmentor, model_cfg={'delay_allreduce': True})
         # load history checkpoints
         if self.history_segmentor is not None and mode == 'TRAIN':
@@ -117,7 +112,7 @@ class BaseRunner():
         self.preparefortrain()
         for cur_epoch in range(self.scheduler.cur_epoch, self.scheduler.max_epochs+1):
             self.train(cur_epoch=cur_epoch)
-            self.scheduler.cur_epoch += 1
+            self.scheduler.cur_epoch = cur_epoch
             if ((cur_epoch % self.save_interval_epochs == 0) or (cur_epoch == self.scheduler.max_epochs)) and (self.cmd_args.local_rank == 0):
                 ckpt_path = os.path.join(self.task_work_dir, f'epoch_{cur_epoch}.pth')
                 saveckpts(ckpts=self.state(), savepath=ckpt_path)
