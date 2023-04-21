@@ -172,5 +172,6 @@ class BaseRunner():
             'segmentor': self.segmentor.state_dict(),
             'optimizer': self.optimizer.state_dict(),
             'iters_per_epoch': len(self.train_loader), 
+            'task_id': self.runner_cfg['task_id'],
         })
         return state_dict

@@ -32,11 +32,11 @@ class Tester():
     '''start'''
     def start(self):
         cmd_args, runner_cfg = self.cmd_args, self.cfg.RUNNER_CFG
+        ckpts = loadckpts(cmd_args.ckptspath)
         dist.init_process_group(backend=runner_cfg['PARALLEL_CFG']['backend'], init_method=runner_cfg['PARALLEL_CFG']['init_method'])
         torch.cuda.set_device(cmd_args.local_rank)
-        runner_cfg['task_id'] = runner_cfg['num_tasks'] - 1
+        runner_cfg['task_id'] = ckpts['task_id']
         runner_client = BuildRunner(mode='TEST', cmd_args=cmd_args, runner_cfg=runner_cfg)
-        ckpts = loadckpts(cmd_args.ckptspath)
         runner_client.segmentor.load_state_dict(ckpts['segmentor'], strict=True)
         results = runner_client.test(cur_epoch=ckpts['cur_epoch'])
         if cmd_args.local_rank == 0:
