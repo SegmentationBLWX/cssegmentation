@@ -63,8 +63,8 @@ class MIBRunner(BaseRunner):
             kd_total_loss, kd_losses_log_dict = 0, {}
             if self.history_segmentor is not None:
                 kd_total_loss, kd_losses_log_dict = self.featuresdistillation(
-                    history_attention=F.interpolate(history_outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners), 
-                    attention=F.interpolate(outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners),
+                    history_distillation_feats=F.interpolate(history_outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners), 
+                    distillation_feats=F.interpolate(outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners),
                     **losses_cfgs['distillation']
                 )
             # --merge two losses
@@ -95,15 +95,15 @@ class MIBRunner(BaseRunner):
                 self.logger_handle.info(losses_log_dict)
                 losses_log_dict = copy.deepcopy(init_losses_log_dict)
     '''featuresdistillation'''
-    def featuresdistillation(self, history_attention, attention, reduction='mean', alpha=1., scale_factor=10):
-        new_cl = attention.shape[1] - history_attention.shape[1]
-        history_attention = history_attention * alpha
-        new_bkg_idx = torch.tensor([0] + [x for x in range(history_attention.shape[1], attention.shape[1])]).to(attention.device)
-        den = torch.logsumexp(attention, dim=1)
-        outputs_no_bgk = attention[:, 1:-new_cl] - den.unsqueeze(dim=1)
-        outputs_bkg = torch.logsumexp(torch.index_select(attention, index=new_bkg_idx, dim=1), dim=1) - den
-        labels = torch.softmax(history_attention, dim=1)
-        loss = (labels[:, 0] * outputs_bkg + (labels[:, 1:] * outputs_no_bgk).sum(dim=1)) / history_attention.shape[1]
+    def featuresdistillation(self, history_distillation_feats, distillation_feats, reduction='mean', alpha=1., scale_factor=10):
+        new_cl = distillation_feats.shape[1] - history_distillation_feats.shape[1]
+        history_distillation_feats = history_distillation_feats * alpha
+        new_bkg_idx = torch.tensor([0] + [x for x in range(history_distillation_feats.shape[1], distillation_feats.shape[1])]).to(distillation_feats.device)
+        den = torch.logsumexp(distillation_feats, dim=1)
+        outputs_no_bgk = distillation_feats[:, 1:-new_cl] - den.unsqueeze(dim=1)
+        outputs_bkg = torch.logsumexp(torch.index_select(distillation_feats, index=new_bkg_idx, dim=1), dim=1) - den
+        labels = torch.softmax(history_distillation_feats, dim=1)
+        loss = (labels[:, 0] * outputs_bkg + (labels[:, 1:] * outputs_no_bgk).sum(dim=1)) / history_distillation_feats.shape[1]
         if reduction == 'mean': 
             loss = -torch.mean(loss)
         elif reduction == 'sum':

@@ -25,9 +25,9 @@ class BasicBlockPLOP(BasicBlock):
         out = self.bn2(out)
         if self.downsample is not None: identity = self.downsample(x)
         out = out + identity
-        attention = out
+        distillation = out
         out = self.shortcut_relu(out)
-        return out, attention
+        return out, distillation
 
 
 '''BottleneckPLOP'''
@@ -52,9 +52,9 @@ class BottleneckPLOP(Bottleneck):
         out = self.bn3(out)
         if self.downsample is not None: identity = self.downsample(x)
         out = out + identity
-        attention = out
+        distillation = out
         out = self.shortcut_relu(out)
-        return out, attention
+        return out, distillation
 
 
 '''ResNetPLOP'''
@@ -72,7 +72,7 @@ class ResNetPLOP(ResNet):
         )
     '''forward'''
     def forward(self, x):
-        outs, attentions = [], []
+        outs, distillation_feats = [], []
         if self.deep_stem:
             x = self.stem(x)
         else:
@@ -80,12 +80,12 @@ class ResNetPLOP(ResNet):
             x = self.bn1(x)
             x = self.relu(x)
         x = self.maxpool(x)
-        x1, attention1 = self.layer1(x)
-        x2, attention2 = self.layer2(x1)
-        x3, attention3 = self.layer3(x2)
-        x4, attention4 = self.layer4(x3)
-        for i, feats in enumerate([(x1, attention1), (x2, attention2), (x3, attention3), (x4, attention4)]):
+        x1, distillation1 = self.layer1(x)
+        x2, distillation2 = self.layer2(x1)
+        x3, distillation3 = self.layer3(x2)
+        x4, distillation4 = self.layer4(x3)
+        for i, feats in enumerate([(x1, distillation1), (x2, distillation2), (x3, distillation3), (x4, distillation4)]):
             if i in self.out_indices: 
                 outs.append(feats[0])
-                attentions.append(feats[1])
-        return tuple(outs), tuple(attentions)
+                distillation_feats.append(feats[1])
+        return tuple(outs), tuple(distillation_feats)

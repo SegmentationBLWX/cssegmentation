@@ -46,15 +46,15 @@ class MIBUnbiasedCrossEntropyLoss(nn.Module):
         self.ignore_index = ignore_index
         self.num_history_known_classes = num_history_known_classes
     '''forward'''
-    def forward(self, inputs, targets):
+    def forward(self, prediction, target):
         # calculate loss according to config
         num_history_known_classes = self.num_history_known_classes
-        outputs = torch.zeros_like(inputs)
-        den = torch.logsumexp(inputs, dim=1)
-        outputs[:, 0] = torch.logsumexp(inputs[:, :num_history_known_classes], dim=1) - den
-        outputs[:, num_history_known_classes:] = inputs[:, num_history_known_classes:] - den.unsqueeze(dim=1)
-        labels = targets.clone()
-        labels[targets < num_history_known_classes] = 0
+        outputs = torch.zeros_like(prediction)
+        den = torch.logsumexp(prediction, dim=1)
+        outputs[:, 0] = torch.logsumexp(prediction[:, :num_history_known_classes], dim=1) - den
+        outputs[:, num_history_known_classes:] = prediction[:, num_history_known_classes:] - den.unsqueeze(dim=1)
+        labels = target.clone()
+        labels[target < num_history_known_classes] = 0
         loss = F.nll_loss(outputs, labels, ignore_index=self.ignore_index, reduction=self.reduction)
         loss = loss * self.scale_factor
         # return

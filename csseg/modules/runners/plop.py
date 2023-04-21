@@ -53,8 +53,8 @@ class PLOPRunner(BaseRunner):
                 num_history_known_classes = functools.reduce(lambda a, b: a + b, self.runner_cfg['SEGMENTOR_CFG']['num_known_classes_list'][:-1])
                 with torch.no_grad():
                     history_outputs = self.history_segmentor(images)
-                    history_attentions = history_outputs['attentions']
-                    history_attentions.append(history_outputs['seg_logits'])
+                    history_distillation_feats = history_outputs['distillation_feats']
+                    history_distillation_feats.append(history_outputs['seg_logits'])
                     history_seg_logits = F.interpolate(history_outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners)
                 background_mask = (targets < num_history_known_classes)
                 history_seg_probs = torch.softmax(history_seg_logits, dim=1)
@@ -81,11 +81,11 @@ class PLOPRunner(BaseRunner):
             # --calculate distillatio losses
             pod_total_loss, pod_losses_log_dict = 0, {}
             if self.history_segmentor is not None:
-                attentions = outputs['attentions']
-                attentions.append(outputs['seg_logits'])
+                distillation_feats = outputs['distillation_feats']
+                distillation_feats.append(outputs['seg_logits'])
                 pod_total_loss, pod_losses_log_dict = self.featuresdistillation(
-                    history_attentions=history_attentions, 
-                    attentions=attentions,
+                    history_distillation_feats=history_distillation_feats, 
+                    distillation_feats=distillation_feats,
                     num_known_classes_list=self.runner_cfg['SEGMENTOR_CFG']['num_known_classes_list'],
                     **losses_cfgs['distillation']
                 )
@@ -168,36 +168,36 @@ class PLOPRunner(BaseRunner):
         return -factor * torch.mean(probabilities * torch.log(probabilities + eps), dim=1)
     '''featuresdistillation'''
     @staticmethod
-    def featuresdistillation(history_attentions, attentions, pod_factor=0.01, pod_factor_last_scale=0.0005, spp_scales=[1, 2, 4], num_known_classes_list=None):
+    def featuresdistillation(history_distillation_feats, distillation_feats, pod_factor=0.01, pod_factor_last_scale=0.0005, spp_scales=[1, 2, 4], num_known_classes_list=None):
         # assert and initialize
-        assert len(history_attentions) == len(attentions)
-        device = history_attentions[0].device
+        assert len(history_distillation_feats) == len(distillation_feats)
+        device = history_distillation_feats[0].device
         loss = torch.tensor(0.).to(device)
         num_known_classes = functools.reduce(lambda a, b: a + b, num_known_classes_list)
         num_curtask_classes = num_known_classes_list[-1]
         num_history_known_classes = num_known_classes - num_curtask_classes
         # start to iter
-        for idx, (history_attention, attention) in enumerate(zip(history_attentions, attentions)):
-            if idx == len(history_attentions) - 1:
+        for idx, (history_distillation, distillation) in enumerate(zip(history_distillation_feats, distillation_feats)):
+            if idx == len(history_distillation_feats) - 1:
                 pod_factor = pod_factor_last_scale if pod_factor_last_scale is not None else pod_factor
-            if history_attention.shape[1] != attention.shape[1]:
-                tmp = torch.zeros_like(history_attention).to(history_attention.dtype).to(history_attention.device)
-                tmp[:, 0] = attention[:, 0] + attention[:, num_history_known_classes:].sum(dim=1)
-                tmp[:, 1:] = attention[:, 1:num_history_known_classes]
-                attention = tmp
-            history_attention = torch.pow(history_attention, 2)
-            history_attention = PLOPRunner.localpod(history_attention, spp_scales)
-            attention = torch.pow(attention, 2)
-            attention = PLOPRunner.localpod(attention, spp_scales)
-            if isinstance(history_attention, list):
-                layer_loss = torch.tensor([torch.frobenius_norm(h_a - n_a, dim=-1) for h_a, n_a in zip(history_attention, attention)]).to(device)
+            if history_distillation.shape[1] != distillation.shape[1]:
+                tmp = torch.zeros_like(history_distillation).to(history_distillation.dtype).to(history_distillation.device)
+                tmp[:, 0] = distillation[:, 0] + distillation[:, num_history_known_classes:].sum(dim=1)
+                tmp[:, 1:] = distillation[:, 1:num_history_known_classes]
+                distillation = tmp
+            history_distillation = torch.pow(history_distillation, 2)
+            history_distillation = PLOPRunner.localpod(history_distillation, spp_scales)
+            distillation = torch.pow(distillation, 2)
+            distillation = PLOPRunner.localpod(distillation, spp_scales)
+            if isinstance(history_distillation, list):
+                layer_loss = torch.tensor([torch.frobenius_norm(h_a - n_a, dim=-1) for h_a, n_a in zip(history_distillation, distillation)]).to(device)
             else:
-                layer_loss = torch.frobenius_norm(history_attention - attention, dim=-1)
+                layer_loss = torch.frobenius_norm(history_distillation - distillation, dim=-1)
             layer_loss = layer_loss.mean()
             layer_loss = pod_factor * layer_loss
             layer_loss = layer_loss * math.sqrt(num_known_classes / num_curtask_classes)
             loss += layer_loss
-        pod_total_loss = loss / len(history_attentions)
+        pod_total_loss = loss / len(history_distillation_feats)
         value = pod_total_loss.data.clone()
         dist.all_reduce(value.div_(dist.get_world_size()))
         pod_losses_log_dict = {'loss_pod': value.item()}

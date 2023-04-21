@@ -20,7 +20,7 @@ class PLOPSegmentor(BaseSegmentor):
     def forward(self, x):
         img_size = x.shape[2:]
         # feed to encoder
-        encoder_outputs, attentions = self.encoder(x)
+        encoder_outputs, distillation_feats = self.encoder(x)
         # select encoder outputs
         selected_feats = self.transforminputs(encoder_outputs, self.selected_indices)
         # feed to decoder
@@ -29,7 +29,7 @@ class PLOPSegmentor(BaseSegmentor):
         seg_logits = [conv(decoder_outputs) for conv in self.convs_cls]
         seg_logits = torch.cat(seg_logits, dim=1)
         # construct outputs
-        outputs = {'seg_logits': seg_logits, 'attentions': list(attentions) + [decoder_outputs]}
+        outputs = {'seg_logits': seg_logits, 'distillation_feats': list(distillation_feats) + [decoder_outputs]}
         # return
         return outputs
     '''initaddedclassifier'''
