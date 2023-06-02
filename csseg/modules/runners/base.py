@@ -28,6 +28,7 @@ class BaseRunner():
         self.best_score = 0
         self.cmd_args = cmd_args
         self.runner_cfg = runner_cfg
+        self.losses_cfgs = runner_cfg['segmentor_cfg'].pop('losses_cfgs')
         self.device = torch.device(cmd_args.local_rank)
         self.root_work_dir = runner_cfg['work_dir']
         self.task_work_dir = os.path.join(runner_cfg['work_dir'], f'task_{runner_cfg["task_id"]}')

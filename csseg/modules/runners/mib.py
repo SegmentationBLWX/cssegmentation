@@ -25,7 +25,7 @@ class MIBRunner(BaseRunner):
         if self.cmd_args.local_rank == 0:
             self.logger_handle.info(f'Start to train {self.runner_cfg["algorithm"]} at Task {self.runner_cfg["task_id"]}, Epoch {cur_epoch}')
         # initialize
-        losses_cfgs = self.runner_cfg['segmentor_cfg']['losses_cfgs']
+        losses_cfgs = copy.deepcopy(self.losses_cfgs)
         init_losses_log_dict = {
             'algorithm': self.runner_cfg['algorithm'], 'task_id': self.runner_cfg['task_id'],
             'epoch': self.scheduler.cur_epoch, 'iteration': self.scheduler.cur_iter, 'lr': self.scheduler.cur_lr
