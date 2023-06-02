@@ -1,4 +1,4 @@
-'''mib_r101iabnd16_aspp_512x512_vocaug10-1_overlap'''
+'''mib_r101iabnd16_aspp_512x512_vocaug10-1_disjoint'''
 import os
 from .base_cfg import RUNNER_CFG
 from .._base_ import DATASET_CFG_VOCAUG_512x512, OPTIMIZER_CFG_SGD, SCHEDULER_CFG_POLY, DATALOADER_CFG_BS24, PARALLEL_CFG
@@ -6,7 +6,7 @@ from .._base_ import DATASET_CFG_VOCAUG_512x512, OPTIMIZER_CFG_SGD, SCHEDULER_CF
 
 # add dataset_cfg
 RUNNER_CFG['dataset_cfg'] = DATASET_CFG_VOCAUG_512x512.copy()
-RUNNER_CFG['dataset_cfg']['overlap'] = True
+RUNNER_CFG['dataset_cfg']['overlap'] = False
 # add dataloader_cfg
 RUNNER_CFG['dataloader_cfg'] = DATALOADER_CFG_BS24.copy()
 # add optimizer_cfg

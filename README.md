@@ -23,21 +23,18 @@ You can star this repository to keep track of the project if it's helpful for yo
 
 ## Major Features
 
-- **Unified Benchmark**
-
-  We provide a unified benchmark toolbox for various continual semantic segmentation methods.
-
-- **Modular Design**
-
-  We decompose the continual semantic segmentation framework into different components and one can easily construct a customized continual semantic segmentation framework by combining different modules.
- 
-- **Support of Multiple Methods Out of Box**
-
-  The toolbox directly supports popular and contemporary continual semantic segmentation frameworks, *e.g.*, MIB, PLOP, RCIL, etc.
- 
 - **High Performance**
 
-  The segmentation performance is better than or comparable to other codebases.
+  The performance of re-implemented CSS algorithms is better than or comparable to the original paper.
+ 
+- **Modular Design and Unified Benchmark**
+  
+  Various CSS methods are unified into several specific modules.
+  Benefiting from this design, CSSegmentation can integrate a great deal of popular and contemporary continual semantic segmentation frameworks and then, train and test them on unified benchmarks.
+  
+- **Fewer Dependencies**
+
+  CSSegmentation tries its best to avoid introducing more dependencies when reproducing novel continual semantic segmentation approaches.
   
 
 ## Benchmark and Model Zoo

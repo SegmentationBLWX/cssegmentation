@@ -1,34 +1,4 @@
 '''BASE_CFG for MIB'''
-# DATASET_CFG
-DATASET_CFG = {
-    'type': '',
-    'rootdir': '', 
-    'overlap': True, 
-    'masking_value': 0,
-    'train': {
-        'set': 'train',
-        'transforms': [
-            ('RandomResizedCrop', {'output_size': 512, 'scale': (0.5, 2.0)}),
-            ('RandomHorizontalFlip', {}),
-            ('ToTensor', {}),
-            ('Normalize', {'mean': [0.485, 0.456, 0.406], 'std': [0.229, 0.224, 0.225]}),
-        ],
-    },
-    'test': {
-        'set': 'val',
-        'transforms': [
-            ('Resize', {'output_size': 512}),
-            ('CenterCrop', {'output_size': 512}),
-            ('ToTensor', {}),
-            ('Normalize', {'mean': [0.485, 0.456, 0.406], 'std': [0.229, 0.224, 0.225]}),
-        ],
-    },
-}
-# DATALOADER_CFG
-DATALOADER_CFG = {
-    'train': {'batch_size': 12, 'num_workers': 1, 'shuffle': True, 'pin_memory': True, 'drop_last': True},
-    'test': {'batch_size': 12, 'num_workers': 1, 'shuffle': False, 'pin_memory': True, 'drop_last': False},
-}
 # SEGMENTOR_CFG
 SEGMENTOR_CFG = {
     'type': 'MIBSegmentor',
@@ -53,44 +23,18 @@ SEGMENTOR_CFG = {
         'norm_cfg': {'type': 'InPlaceABNSync', 'activation': 'leaky_relu', 'activation_param': 0.01},
         'act_cfg': None,
     },
-}
-# OPTIMIZER_CFGS
-OPTIMIZER_CFGS = [{
-    'constructor_cfg': {'type': 'DefaultParamsConstructor', 'filter_params': True, 'paramwise_cfg': None},
-    'type': 'SGD',
-    'momentum': 0.9, 
-    'nesterov': True,
-    'weight_decay': 1e-4,
-}]
-# SCHEDULER_CFGS
-SCHEDULER_CFGS = [{
-    'type': 'PolyScheduler',
-    'max_iters': -1, 
-    'max_epochs': -1, 
-    'lr': 0.01, 
-    'min_lr': 0.0, 
-    'power': 0.9
-}]
-# PARALLEL_CFG
-PARALLEL_CFG = {
-    'backend': 'nccl',
-    'init_method': 'env://',
-    'opt_level': ['O0', 'O1', 'O2', 'O3'][1],
-}
-# LOSSES_CFGS
-LOSSES_CFGS = {
-    'segmentation': [
-        {'loss_seg': {'CrossEntropyLoss': {'scale_factor': 1.0, 'reduction': 'mean', 'ignore_index': 255}}},
-    ],
-    'distillation': {'scale_factor': 10, 'alpha': 1.0},
+    'losses_cfgs': {
+        'segmentation_init': {
+            'loss_seg': {'CrossEntropyLoss': {'scale_factor': 1.0, 'reduction': 'mean', 'ignore_index': 255}}
+        },
+        'segmentation_cl' : {
+            'loss_seg': {'MIBUnbiasedCrossEntropyLoss': {'scale_factor': 1.0, 'reduction': 'mean', 'ignore_index': 255}}
+        },
+        'distillation': {'scale_factor': 10, 'alpha': 1.0},
+    },
 }
 # RUNNER_CFG
 RUNNER_CFG = {
-    'DATASET_CFG': DATASET_CFG, 'DATALOADER_CFG': DATALOADER_CFG, 'SEGMENTOR_CFG': SEGMENTOR_CFG,
-    'OPTIMIZER_CFGS': OPTIMIZER_CFGS, 'SCHEDULER_CFGS': SCHEDULER_CFGS, 'PARALLEL_CFG': PARALLEL_CFG,
-    'LOSSES_CFGS': LOSSES_CFGS,
-}
-RUNNER_CFG.update({
     'type': 'MIBRunner',
     'algorithm': 'MIB',
     'task_name': '',
@@ -104,4 +48,5 @@ RUNNER_CFG.update({
     'logfilepath': '',
     'num_total_classes': -1,
     'random_seed': 42,
-})
+    'segmentor_cfg': SEGMENTOR_CFG,
+}

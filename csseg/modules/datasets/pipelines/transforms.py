@@ -17,19 +17,19 @@ from PIL import Image
 
 '''Resize'''
 class Resize(object):
-    def __init__(self, output_size, image_interpolation='BILINEAR', target_interpolation='NEAREST'):
+    def __init__(self, output_size, image_interpolation='BILINEAR', seg_target_interpolation='NEAREST'):
         # assert
         assert isinstance(output_size, int) or \
                (isinstance(output_size, collections.Sequence) and len(output_size) == 2)
-        assert hasattr(Image, image_interpolation) and hasattr(Image, target_interpolation)
+        assert hasattr(Image, image_interpolation) and hasattr(Image, seg_target_interpolation)
         # set attributes
         self.output_size = output_size
         self.image_interpolation = getattr(Image, image_interpolation)
-        self.target_interpolation = getattr(Image, target_interpolation)
+        self.seg_target_interpolation = getattr(Image, seg_target_interpolation)
     '''call'''
     def __call__(self, data_meta):
         data_meta = self.resize('image', data_meta, self.output_size, self.image_interpolation)
-        data_meta = self.resize('target', data_meta, self.output_size, self.target_interpolation)
+        data_meta = self.resize('seg_target', data_meta, self.output_size, self.seg_target_interpolation)
         return data_meta
     '''resize'''
     @staticmethod
@@ -49,7 +49,7 @@ class CenterCrop(object):
     '''call'''
     def __call__(self, data_meta):
         data_meta = self.centercrop('image', data_meta, self.output_size)
-        data_meta = self.centercrop('target', data_meta, self.output_size)
+        data_meta = self.centercrop('seg_target', data_meta, self.output_size)
         return data_meta
     '''centercrop'''
     @staticmethod
@@ -61,23 +61,23 @@ class CenterCrop(object):
 
 '''Pad'''
 class Pad(object):
-    def __init__(self, padding, image_fill=0, target_fill=255, padding_mode='constant'):
+    def __init__(self, padding, image_fill=0, seg_target_fill=255, padding_mode='constant'):
         # assert
         assert isinstance(padding, (numbers.Number, tuple))
         assert isinstance(image_fill, (numbers.Number, str, tuple))
-        assert isinstance(target_fill, (numbers.Number, str, tuple))
+        assert isinstance(seg_target_fill, (numbers.Number, str, tuple))
         assert padding_mode in ['constant', 'edge', 'reflect', 'symmetric']
         if isinstance(padding, collections.Sequence):
             assert len(padding) in [2, 4]
         # set attributes
         self.padding = padding
         self.image_fill = image_fill
-        self.target_fill = target_fill
+        self.seg_target_fill = seg_target_fill
         self.padding_mode = padding_mode
     '''call'''
     def __call__(self, data_meta):
         data_meta = self.pad('image', data_meta, self.padding, self.image_fill, self.padding_mode)
-        data_meta = self.pad('target', data_meta, self.padding, self.target_fill, self.padding_mode)
+        data_meta = self.pad('seg_target', data_meta, self.padding, self.seg_target_fill, self.padding_mode)
         return data_meta
     '''pad'''
     @staticmethod
@@ -97,7 +97,7 @@ class Lambda(object):
     '''call'''
     def __call__(self, data_meta):
         data_meta = self.lambd('image', data_meta, self.lambd)
-        data_meta = self.lambd('target', data_meta, self.lambd)
+        data_meta = self.lambd('seg_target', data_meta, self.lambd)
         return data_meta
     '''lambd'''
     @staticmethod
@@ -126,7 +126,7 @@ class RandomRotation(object):
     def __call__(self, data_meta):
         angle = random.uniform(self.degrees[0], self.degrees[1])
         data_meta = self.randomrotate('image', data_meta, angle, self.resample, self.expand, self.center)
-        data_meta = self.randomrotate('target', data_meta, angle, self.resample, self.expand, self.center)
+        data_meta = self.randomrotate('seg_target', data_meta, angle, self.resample, self.expand, self.center)
         return data_meta
     '''randomrotate'''
     @staticmethod
@@ -147,7 +147,7 @@ class RandomHorizontalFlip(object):
     def __call__(self, data_meta):
         if random.random() < self.prob:
             data_meta = self.hflip('image', data_meta)
-            data_meta = self.hflip('target', data_meta)
+            data_meta = self.hflip('seg_target', data_meta)
         return data_meta
     '''hflip'''
     @staticmethod
@@ -168,7 +168,7 @@ class RandomVerticalFlip(object):
     def __call__(self, data_meta):
         if random.random() < self.prob:
             data_meta = self.vflip('image', data_meta)
-            data_meta = self.vflip('target', data_meta)
+            data_meta = self.vflip('seg_target', data_meta)
         return data_meta
     '''vflip'''
     @staticmethod
@@ -186,8 +186,8 @@ class ToTensor(object):
     def __call__(self, data_meta):
         if 'image' in data_meta:
             data_meta['image'] = F.to_tensor(data_meta['image'])
-        if 'target' in data_meta:
-            data_meta['target'] = torch.from_numpy(np.array(data_meta['target'], dtype=np.uint8))
+        if 'seg_target' in data_meta:
+            data_meta['seg_target'] = torch.from_numpy(np.array(data_meta['seg_target'], dtype=np.uint8))
         return data_meta
 
 
@@ -216,12 +216,12 @@ class RandomCrop(object):
     '''call'''
     def __call__(self, data_meta):
         image_width, image_height = data_meta['image'].size
-        target_height, target_width = self.output_size
-        target_height = min(image_height, target_height)
-        target_width = min(image_width, target_width)
-        top, left, height, width = random.randint(0, image_height - target_height), random.randint(0, image_width - target_width), target_height, target_width
+        output_height, output_width = self.output_size
+        output_height = min(image_height, output_height)
+        output_width = min(image_width, output_width)
+        top, left, height, width = random.randint(0, image_height - output_height), random.randint(0, image_width - output_width), output_height, output_width
         data_meta = self.crop('image', data_meta, top, left, height, width)
-        data_meta = self.crop('target', data_meta, top, left, height, width)
+        data_meta = self.crop('seg_target', data_meta, top, left, height, width)
         return data_meta
     '''crop'''
     @staticmethod
@@ -233,7 +233,7 @@ class RandomCrop(object):
 
 '''RandomResizedCrop'''
 class RandomResizedCrop(object):
-    def __init__(self, output_size, scale=(0.08, 1.0), ratio=(3. / 4., 4. / 3.), image_interpolation='BILINEAR', target_interpolation='NEAREST'):
+    def __init__(self, output_size, scale=(0.08, 1.0), ratio=(3. / 4., 4. / 3.), image_interpolation='BILINEAR', seg_target_interpolation='NEAREST'):
         # assert
         assert isinstance(output_size, int) or \
                (isinstance(output_size, collections.Sequence) and len(output_size) == 2)
@@ -243,24 +243,24 @@ class RandomResizedCrop(object):
         assert scale[1] > scale[0]
         assert isinstance(ratio, collections.Sequence) and len(ratio) == 2
         assert ratio[1] > ratio[0]
-        assert hasattr(Image, image_interpolation) and hasattr(Image, target_interpolation)
+        assert hasattr(Image, image_interpolation) and hasattr(Image, seg_target_interpolation)
         # set attributes
         self.output_size = output_size
         self.scale = scale
         self.ratio = ratio
         self.image_interpolation = getattr(Image, image_interpolation)
-        self.target_interpolation = getattr(Image, target_interpolation)
+        self.seg_target_interpolation = getattr(Image, seg_target_interpolation)
     '''call'''
     def __call__(self, data_meta):
         image = data_meta['image']
         top, left, height, width = None, None, None, None
         area = image.size[0] * image.size[1]
         for _ in range(10):
-            target_area = random.uniform(*self.scale) * area
+            output_area = random.uniform(*self.scale) * area
             log_ratio = (math.log(self.ratio[0]), math.log(self.ratio[1]))
             aspect_ratio = math.exp(random.uniform(*log_ratio))
-            width = int(round(math.sqrt(target_area * aspect_ratio)))
-            height = int(round(math.sqrt(target_area / aspect_ratio)))
+            width = int(round(math.sqrt(output_area * aspect_ratio)))
+            height = int(round(math.sqrt(output_area / aspect_ratio)))
             if width <= image.size[0] and height <= image.size[1]:
                 top = random.randint(0, image.size[1] - height)
                 left = random.randint(0, image.size[0] - width)
@@ -279,7 +279,7 @@ class RandomResizedCrop(object):
             top = (image.size[1] - height) // 2
             left = (image.size[0] - width) // 2
         data_meta = self.resizedcrop('image', data_meta, top, left, height, width, self.output_size, self.image_interpolation)
-        data_meta = self.resizedcrop('target', data_meta, top, left, height, width, self.output_size, self.target_interpolation)
+        data_meta = self.resizedcrop('seg_target', data_meta, top, left, height, width, self.output_size, self.seg_target_interpolation)
         return data_meta
     '''resizecrop'''
     @staticmethod

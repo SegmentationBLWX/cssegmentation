@@ -4,6 +4,7 @@ Function:
 Author:
     Zhenchao Jin
 '''
+import copy
 import torch
 import warnings
 import argparse
@@ -31,12 +32,19 @@ class Trainer():
         self.cfg = BuildConfig(cmd_args.cfgfilepath)[0]
     '''start'''
     def start(self):
+        # initialize
         cmd_args, runner_cfg = self.cmd_args, self.cfg.RUNNER_CFG
         dist.init_process_group(backend=runner_cfg['PARALLEL_CFG']['backend'], init_method=runner_cfg['PARALLEL_CFG']['init_method'])
         torch.cuda.set_device(cmd_args.local_rank)
+        # iter tasks
         for task_id in range(cmd_args.starttaskid, runner_cfg['num_tasks']):
-            runner_cfg['task_id'] = task_id
-            runner_client = BuildRunner(mode='TRAIN', cmd_args=cmd_args, runner_cfg=runner_cfg)
+            runner_cfg_task = copy.deepcopy(runner_cfg)
+            runner_cfg_task['task_id'] = task_id
+            for key in ['segmentor_cfg', 'dataset_cfg', 'dataloader_cfg', 'optimizer_cfg', 'scheduler_cfg', 'parallel_cfg']:
+                if isinstance(runner_cfg_task[key], list):
+                    assert len(runner_cfg_task[key]) == runner_cfg_task['num_tasks']
+                    runner_cfg_task[key] = runner_cfg_task[key][task_id]
+            runner_client = BuildRunner(mode='TRAIN', cmd_args=cmd_args, runner_cfg=runner_cfg_task)
             runner_client.start()
 
 

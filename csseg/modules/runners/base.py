@@ -43,18 +43,18 @@ class BaseRunner():
         self.logger_handle = Logger(logfilepath=runner_cfg['logfilepath'])
         # build datasets
         setrandomseed(runner_cfg['random_seed'])
-        dataset_cfg = runner_cfg['DATASET_CFG']
+        dataset_cfg = runner_cfg['dataset_cfg']
         train_set = BuildDataset(mode='TRAIN', task_name=runner_cfg['task_name'], task_id=runner_cfg['task_id'], dataset_cfg=dataset_cfg) if mode == 'TRAIN' else None
         test_set = BuildDataset(mode='TEST', task_name=runner_cfg['task_name'], task_id=runner_cfg['task_id'], dataset_cfg=dataset_cfg)
         assert (runner_cfg['num_total_classes'] == train_set.num_classes if mode == 'TRAIN' else True)
         assert runner_cfg['num_total_classes'] == test_set.num_classes
         random.seed(runner_cfg['random_seed'])
         # build dataloaders
-        dataloader_cfg = runner_cfg['DATALOADER_CFG']
+        dataloader_cfg = runner_cfg['dataloader_cfg']
         self.train_loader = BuildDistributedDataloader(dataset=train_set, dataloader_cfg=dataloader_cfg) if mode == 'TRAIN' else None
         self.test_loader = BuildDistributedDataloader(dataset=test_set, dataloader_cfg=dataloader_cfg)
         # build segmentor
-        segmentor_cfg = runner_cfg['SEGMENTOR_CFG']
+        segmentor_cfg = runner_cfg['segmentor_cfg']
         if train_set is None:
             segmentor_cfg['num_known_classes_list'] = test_set.getnumclassespertask(runner_cfg['task_name'], test_set.tasks, runner_cfg['task_id'])
         else:
@@ -68,9 +68,9 @@ class BaseRunner():
             self.history_segmentor = None
         # build optimizer
         if mode == 'TRAIN':
-            scheduler_cfg = runner_cfg['SCHEDULER_CFGS'][runner_cfg['task_id']]
+            scheduler_cfg = runner_cfg['scheduler_cfg']
             scheduler_cfg['max_iters'] = len(self.train_loader) * scheduler_cfg['max_epochs']
-            optimizer_cfg = runner_cfg['OPTIMIZER_CFGS'][runner_cfg['task_id']]
+            optimizer_cfg = runner_cfg['optimizer_cfg']
             optimizer_cfg['lr'] = scheduler_cfg['lr']
             self.optimizer = BuildOptimizer(model=self.segmentor, optimizer_cfg=optimizer_cfg)
         else:
@@ -78,7 +78,7 @@ class BaseRunner():
         # build scheduler
         self.scheduler = BuildScheduler(optimizer=self.optimizer, scheduler_cfg=scheduler_cfg) if mode == 'TRAIN' else None
         # parallel segmentor
-        parallel_cfg = runner_cfg['PARALLEL_CFG']
+        parallel_cfg = runner_cfg['parallel_cfg']
         if self.history_segmentor is None and mode == 'TRAIN':
             self.segmentor, self.optimizer = amp.initialize(
                 self.segmentor.to(self.device), self.optimizer, opt_level=parallel_cfg['opt_level']
@@ -154,11 +154,11 @@ class BaseRunner():
                 test_loader.set_description('Evaluating')
             for batch_idx, data_meta in enumerate(test_loader):
                 images = data_meta['image'].to(self.device, dtype=torch.float32)
-                targets = data_meta['target'].to(self.device, dtype=torch.long)
+                seg_targets = data_meta['seg_target'].to(self.device, dtype=torch.long)
                 seg_logits = self.segmentor(images)['seg_logits']
-                seg_logits = F.interpolate(seg_logits, size=targets.shape[-2:], mode='bilinear', align_corners=self.segmentor.module.align_corners)
+                seg_logits = F.interpolate(seg_logits, size=seg_targets.shape[-2:], mode='bilinear', align_corners=self.segmentor.module.align_corners)
                 seg_preds = seg_logits.max(dim=1)[-1]
-                seg_targets = targets.cpu().numpy()
+                seg_targets = seg_targets.cpu().numpy()
                 seg_preds = seg_preds.cpu().numpy()
                 seg_evaluator.update(seg_targets=seg_targets, seg_preds=seg_preds)
         seg_evaluator.synchronize(device=self.device)

@@ -25,7 +25,7 @@ class MIBRunner(BaseRunner):
         if self.cmd_args.local_rank == 0:
             self.logger_handle.info(f'Start to train {self.runner_cfg["algorithm"]} at Task {self.runner_cfg["task_id"]}, Epoch {cur_epoch}')
         # initialize
-        losses_cfgs = self.runner_cfg['LOSSES_CFGS']
+        losses_cfgs = self.runner_cfg['segmentor_cfg']['losses_cfgs']
         init_losses_log_dict = {
             'algorithm': self.runner_cfg['algorithm'], 'task_id': self.runner_cfg['task_id'],
             'epoch': self.scheduler.cur_epoch, 'iteration': self.scheduler.cur_iter, 'lr': self.scheduler.cur_lr
@@ -37,8 +37,7 @@ class MIBRunner(BaseRunner):
         for batch_idx, data_meta in enumerate(self.train_loader):
             # --fetch data
             images = data_meta['image'].to(self.device, dtype=torch.float32)
-            targets = data_meta['target'].to(self.device, dtype=torch.long)
-            seg_targets = targets.clone()
+            seg_targets = data_meta['seg_target'].to(self.device, dtype=torch.long)
             # --feed to history_segmentor
             if self.history_segmentor is not None:
                 with torch.no_grad():
@@ -48,9 +47,9 @@ class MIBRunner(BaseRunner):
             # --forward to segmentor
             outputs = self.segmentor(images)
             # --calculate segmentation losses
-            seg_losses_cfgs = copy.deepcopy(losses_cfgs['segmentation'][self.runner_cfg['task_id']])
+            seg_losses_cfgs = copy.deepcopy(losses_cfgs['segmentation_cl']) if self.history_segmentor is not None else copy.deepcopy(losses_cfgs['segmentation_init'])
             if self.history_segmentor is not None:
-                num_history_known_classes = functools.reduce(lambda a, b: a + b, self.runner_cfg['SEGMENTOR_CFG']['num_known_classes_list'][:-1])
+                num_history_known_classes = functools.reduce(lambda a, b: a + b, self.runner_cfg['segmentor_cfg']['num_known_classes_list'][:-1])
                 for _, seg_losses_cfg in seg_losses_cfgs.items():
                     for loss_type, loss_cfg in seg_losses_cfg.items():
                         loss_cfg.update({'num_history_known_classes': num_history_known_classes, 'reduction': 'none'})

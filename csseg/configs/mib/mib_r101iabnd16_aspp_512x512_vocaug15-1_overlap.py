@@ -1,49 +1,32 @@
 '''mib_r101iabnd16_aspp_512x512_vocaug15-1_overlap'''
 import os
 from .base_cfg import RUNNER_CFG
+from .._base_ import DATASET_CFG_VOCAUG_512x512, OPTIMIZER_CFG_SGD, SCHEDULER_CFG_POLY, DATALOADER_CFG_BS24, PARALLEL_CFG
 
 
-# modify DATASET_CFG
-RUNNER_CFG['DATASET_CFG'].update({
-    'type': 'VOCDataset',
-    'rootdir': os.path.join(os.getcwd(), 'VOCdevkit/VOC2012'),
-    'overlap': True,
-})
-RUNNER_CFG['DATASET_CFG']['train']['set'] = 'trainaug'
-# modify OPTIMIZER_CFGS
-RUNNER_CFG['OPTIMIZER_CFGS'] = [{
-    'constructor_cfg': {'type': 'DefaultParamsConstructor', 'filter_params': True, 'paramwise_cfg': None},
-    'type': 'SGD',
-    'momentum': 0.9, 
-    'nesterov': True,
-    'weight_decay': 1e-4,
-} for _ in range(6)]
-# modify SCHEDULER_CFGS
-RUNNER_CFG['SCHEDULER_CFGS'] = [
-    {'type': 'PolyScheduler', 'max_iters': -1, 'max_epochs': 30, 'lr': 0.01, 'min_lr': 0.0, 'power': 0.9},
-    {'type': 'PolyScheduler', 'max_iters': -1, 'max_epochs': 30, 'lr': 0.001, 'min_lr': 0.0, 'power': 0.9},
-    {'type': 'PolyScheduler', 'max_iters': -1, 'max_epochs': 30, 'lr': 0.001, 'min_lr': 0.0, 'power': 0.9},
-    {'type': 'PolyScheduler', 'max_iters': -1, 'max_epochs': 30, 'lr': 0.001, 'min_lr': 0.0, 'power': 0.9},
-    {'type': 'PolyScheduler', 'max_iters': -1, 'max_epochs': 30, 'lr': 0.001, 'min_lr': 0.0, 'power': 0.9},
-    {'type': 'PolyScheduler', 'max_iters': -1, 'max_epochs': 30, 'lr': 0.001, 'min_lr': 0.0, 'power': 0.9},
+# add dataset_cfg
+RUNNER_CFG['dataset_cfg'] = DATASET_CFG_VOCAUG_512x512.copy()
+RUNNER_CFG['dataset_cfg']['overlap'] = True
+# add dataloader_cfg
+RUNNER_CFG['dataloader_cfg'] = DATALOADER_CFG_BS24.copy()
+# add optimizer_cfg
+RUNNER_CFG['optimizer_cfg'] = OPTIMIZER_CFG_SGD.copy()
+# add scheduler_cfg
+RUNNER_CFG['scheduler_cfg'] = [
+    SCHEDULER_CFG_POLY.copy() for _ in range(6)
 ]
-# modify LOSSES_CFGS
-RUNNER_CFG['LOSSES_CFGS'] = {
-    'segmentation': [
-        {'loss_seg': {'CrossEntropyLoss': {'scale_factor': 1.0, 'reduction': 'mean', 'ignore_index': 255}}},
-        {'loss_seg': {'MIBUnbiasedCrossEntropyLoss': {'scale_factor': 1.0, 'reduction': 'mean', 'ignore_index': 255}}},
-        {'loss_seg': {'MIBUnbiasedCrossEntropyLoss': {'scale_factor': 1.0, 'reduction': 'mean', 'ignore_index': 255}}},
-        {'loss_seg': {'MIBUnbiasedCrossEntropyLoss': {'scale_factor': 1.0, 'reduction': 'mean', 'ignore_index': 255}}},
-        {'loss_seg': {'MIBUnbiasedCrossEntropyLoss': {'scale_factor': 1.0, 'reduction': 'mean', 'ignore_index': 255}}},
-        {'loss_seg': {'MIBUnbiasedCrossEntropyLoss': {'scale_factor': 1.0, 'reduction': 'mean', 'ignore_index': 255}}},
-    ],
-    'distillation': {'scale_factor': 10, 'alpha': 1.0},
-}
+RUNNER_CFG['scheduler_cfg'][0]['max_epochs'] = 30
+RUNNER_CFG['scheduler_cfg'][0]['lr'] = 0.01
+for i in range(1, 6):
+    RUNNER_CFG['scheduler_cfg'][i]['max_epochs'] = 30
+    RUNNER_CFG['scheduler_cfg'][i]['lr'] = 0.001
+# add parallel_cfg
+RUNNER_CFG['parallel_cfg'] = PARALLEL_CFG.copy()
 # modify RUNNER_CFG
 RUNNER_CFG.update({
     'task_name': '15-5s',
     'num_tasks': 6,
     'num_total_classes': 21,
-    'work_dir': 'mib_r101iabnd16_aspp_512x512_vocaug15-1_overlap',
-    'logfilepath': 'mib_r101iabnd16_aspp_512x512_vocaug15-1_overlap/mib_r101iabnd16_aspp_512x512_vocaug15-1_overlap.log',
+    'work_dir': os.path.split(__file__)[-1].split('.')[0],
+    'logfilepath': f"{os.path.split(__file__)[-1].split('.')[0]}/{os.path.split(__file__)[-1].split('.')[0]}.log",
 })

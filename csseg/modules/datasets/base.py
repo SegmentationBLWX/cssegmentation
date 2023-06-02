@@ -20,18 +20,18 @@ from .pipelines import (
 
 '''Subset'''
 class Subset(torch.utils.data.Dataset):
-    def __init__(self, dataset, indices, transforms=None, target_transforms=None):
+    def __init__(self, dataset, indices, transforms=None, seg_target_transforms=None):
         # set attributes
         self.dataset = dataset
         self.indices = indices
         self.transforms = transforms
-        self.target_transforms = target_transforms
+        self.seg_target_transforms = seg_target_transforms
     '''getitem'''
     def __getitem__(self, index):
         data_meta = self.dataset[self.indices[index]]
         data_meta = self.transforms(data_meta) if self.transforms is not None else data_meta
-        if 'target' in data_meta and data_meta['target'] is not None:
-            data_meta['target'] = self.target_transforms(data_meta['target']) if self.target_transforms is not None else data_meta['target']
+        if 'seg_target' in data_meta and data_meta['seg_target'] is not None:
+            data_meta['seg_target'] = self.seg_target_transforms(data_meta['seg_target']) if self.seg_target_transforms is not None else data_meta['seg_target']
         return data_meta
     '''len'''
     def __len__(self):
@@ -54,14 +54,14 @@ class _BaseDataset(torch.utils.data.Dataset):
         imageid = self.imageids[index]
         imagepath = os.path.join(self.image_dir, f'{imageid}.jpg')
         annpath = os.path.join(self.ann_dir, f'{imageid}.png')
-        # read image and target
-        image, target = Image.open(imagepath).convert('RGB'), None
+        # read image and seg_target
+        image, seg_target = Image.open(imagepath).convert('RGB'), None
         if self.mode == 'TRAIN': assert os.path.exists(annpath)
         if os.path.exists(annpath):
-            target = Image.open(annpath)
+            seg_target = Image.open(annpath)
         # perform transforms
         data_meta = {
-            'image': image, 'target': target, 'imageid': imageid,
+            'image': image, 'seg_target': seg_target, 'imageid': imageid,
             'width': image.size[0], 'height': image.size[1],
         }
         data_meta = self.transforms(data_meta) if self.transforms is not None else data_meta
@@ -133,11 +133,11 @@ class BaseDataset(torch.utils.data.Dataset):
         # remap the labels
         self.labels_to_trainlabels_map = {label: self.all_labels.index(label) for label in self.all_labels}
         self.labels_to_trainlabels_map[255] = 255
-        target_transforms = torchvision.transforms.Lambda(
+        seg_target_transforms = torchvision.transforms.Lambda(
             lambda t: t.apply_(lambda x: self.labels_to_trainlabels_map[x] if x in self.labels + [255] else masking_value)
         )
         # obtain subset
-        self.data_generator = Subset(data_generator, selected_indices, transforms, target_transforms)
+        self.data_generator = Subset(data_generator, selected_indices, transforms, seg_target_transforms)
     '''gettasklabels'''
     @staticmethod
     def gettasklabels(task_name, tasks, task_id):
@@ -166,7 +166,7 @@ class BaseDataset(torch.utils.data.Dataset):
         else:
             pbar = dataset
         for idx, data_meta in enumerate(pbar):
-            cls = np.unique(np.array(data_meta['target']))
+            cls = np.unique(np.array(data_meta['seg_target']))
             if filter_func(cls):
                 selected_indices.append(idx)
         return selected_indices
