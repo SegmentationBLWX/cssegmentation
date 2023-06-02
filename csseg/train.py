@@ -18,7 +18,7 @@ warnings.filterwarnings('ignore')
 def parsecmdargs():
     parser = argparse.ArgumentParser(description='CSSegmentation: An Open Source Continual Semantic Segmentation Toolbox Based on PyTorch.')
     parser.add_argument('--local_rank', dest='local_rank', help='node rank for distributed training.', default=0, type=int)
-    parser.add_argument('--nproc_per_node', dest='nproc_per_node', help='number of processes per node.', default=2, type=int)
+    parser.add_argument('--nproc_per_node', dest='nproc_per_node', help='number of processes per node.', default=4, type=int)
     parser.add_argument('--cfgfilepath', dest='cfgfilepath', help='config file path you want to load.', type=str, required=True)
     parser.add_argument('--starttaskid', dest='starttaskid', help='task id you want to start from.', default=0, type=int)
     cmd_args = parser.parse_args()
@@ -34,7 +34,7 @@ class Trainer():
     def start(self):
         # initialize
         cmd_args, runner_cfg = self.cmd_args, self.cfg.RUNNER_CFG
-        dist.init_process_group(backend=runner_cfg['PARALLEL_CFG']['backend'], init_method=runner_cfg['PARALLEL_CFG']['init_method'])
+        dist.init_process_group(backend=runner_cfg['parallel_cfg']['backend'], init_method=runner_cfg['parallel_cfg']['init_method'])
         torch.cuda.set_device(cmd_args.local_rank)
         # iter tasks
         for task_id in range(cmd_args.starttaskid, runner_cfg['num_tasks']):

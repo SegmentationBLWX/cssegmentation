@@ -51,6 +51,8 @@ class BaseRunner():
         random.seed(runner_cfg['random_seed'])
         # build dataloaders
         dataloader_cfg = runner_cfg['dataloader_cfg']
+        total_bs_for_auto_check = dataloader_cfg.pop('total_bs_for_auto_check')
+        assert dataloader_cfg['train']['batch_size_per_gpu'] * self.cmd_args.nproc_per_node == total_bs_for_auto_check
         self.train_loader = BuildDistributedDataloader(dataset=train_set, dataloader_cfg=dataloader_cfg) if mode == 'TRAIN' else None
         self.test_loader = BuildDistributedDataloader(dataset=test_set, dataloader_cfg=dataloader_cfg)
         # build segmentor
