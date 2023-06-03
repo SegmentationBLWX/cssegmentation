@@ -94,7 +94,8 @@ class MIBRunner(BaseRunner):
                 self.logger_handle.info(losses_log_dict)
                 losses_log_dict = copy.deepcopy(init_losses_log_dict)
     '''featuresdistillation'''
-    def featuresdistillation(self, history_distillation_feats, distillation_feats, reduction='mean', alpha=1., scale_factor=10):
+    @staticmethod
+    def featuresdistillation(history_distillation_feats, distillation_feats, reduction='mean', alpha=1., scale_factor=10):
         new_cl = distillation_feats.shape[1] - history_distillation_feats.shape[1]
         history_distillation_feats = history_distillation_feats * alpha
         new_bkg_idx = torch.tensor([0] + [x for x in range(history_distillation_feats.shape[1], distillation_feats.shape[1])]).to(distillation_feats.device)
@@ -109,6 +110,7 @@ class MIBRunner(BaseRunner):
             loss = -torch.sum(loss)
         else:
             loss = -loss
+        loss = loss * scale_factor
         value = loss.data.clone()
         dist.all_reduce(value.div_(dist.get_world_size()))
         kd_losses_log_dict = {'loss_kd': value.item()}
