@@ -9,7 +9,7 @@ import torch
 import functools
 import torch.nn.functional as F
 import torch.distributed as dist
-from apex import amp
+from torch import autocast
 from .base import BaseRunner
 
 
@@ -41,11 +41,13 @@ class MIBRunner(BaseRunner):
             # --feed to history_segmentor
             if self.history_segmentor is not None:
                 with torch.no_grad():
-                    history_outputs = self.history_segmentor(images)
+                    with autocast(device_type='cuda', dtype=torch.float16):
+                        history_outputs = self.history_segmentor(images)
             # --set zero gradient
             self.scheduler.zerograd()
             # --forward to segmentor
-            outputs = self.segmentor(images)
+            with autocast(device_type='cuda', dtype=torch.float16):
+                outputs = self.segmentor(images)
             # --calculate segmentation losses
             seg_losses_cfgs = copy.deepcopy(losses_cfgs['segmentation_cl']) if self.history_segmentor is not None else copy.deepcopy(losses_cfgs['segmentation_init'])
             if self.history_segmentor is not None:
@@ -53,25 +55,27 @@ class MIBRunner(BaseRunner):
                 for _, seg_losses_cfg in seg_losses_cfgs.items():
                     for loss_type, loss_cfg in seg_losses_cfg.items():
                         loss_cfg.update({'num_history_known_classes': num_history_known_classes, 'reduction': 'none'})
-            seg_total_loss, seg_losses_log_dict = self.segmentor.module.calculateseglosses(
-                seg_logits=outputs['seg_logits'], 
-                seg_targets=seg_targets, 
-                losses_cfgs=seg_losses_cfgs,
-            )
+            with autocast(device_type='cuda', dtype=torch.float16):
+                seg_total_loss, seg_losses_log_dict = self.segmentor.module.calculateseglosses(
+                    seg_logits=outputs['seg_logits'], 
+                    seg_targets=seg_targets, 
+                    losses_cfgs=seg_losses_cfgs,
+                )
             # --calculate distillatio losses
             kd_total_loss, kd_losses_log_dict = 0, {}
             if self.history_segmentor is not None:
-                kd_total_loss, kd_losses_log_dict = self.featuresdistillation(
-                    history_distillation_feats=F.interpolate(history_outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners), 
-                    distillation_feats=F.interpolate(outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners),
-                    **losses_cfgs['distillation']
-                )
+                with autocast(device_type='cuda', dtype=torch.float16):
+                    kd_total_loss, kd_losses_log_dict = self.featuresdistillation(
+                        history_distillation_feats=F.interpolate(history_outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners), 
+                        distillation_feats=F.interpolate(outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners),
+                        **losses_cfgs['distillation']
+                    )
             # --merge two losses
-            loss_total = kd_total_loss + seg_total_loss
+            with autocast(device_type='cuda', dtype=torch.float16):
+                loss_total = kd_total_loss + seg_total_loss
             # --perform back propagation
-            with amp.scale_loss(loss_total, self.optimizer) as scaled_loss_total:
-                scaled_loss_total.backward()
-            self.scheduler.step()
+            self.grad_scaler.scale(loss_total).backward()
+            self.scheduler.step(self.grad_scaler)
             # --logging training loss info
             seg_losses_log_dict.update(kd_losses_log_dict)
             seg_losses_log_dict.pop('loss_total')

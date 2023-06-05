@@ -10,8 +10,8 @@ import torch
 import random
 import torch.nn as nn
 import torch.nn.functional as F
-from apex import amp
 from tqdm import tqdm
+from torch.cuda.amp import GradScaler
 from ..datasets import BuildDataset, SegmentationEvaluator
 from ..models import BuildSegmentor, BuildOptimizer, BuildScheduler
 from ..parallel import BuildDistributedDataloader, BuildDistributedModel
@@ -82,18 +82,12 @@ class BaseRunner():
         self.scheduler = BuildScheduler(optimizer=self.optimizer, scheduler_cfg=scheduler_cfg) if mode == 'TRAIN' else None
         # parallel segmentor
         parallel_cfg = runner_cfg['parallel_cfg']
-        if self.history_segmentor is None and mode == 'TRAIN':
-            self.segmentor, self.optimizer = amp.initialize(
-                self.segmentor.to(self.device), self.optimizer, opt_level=parallel_cfg['opt_level']
-            )
-        elif mode == 'TRAIN':
-            [self.segmentor, self.history_segmentor], self.optimizer = amp.initialize(
-                [self.segmentor.to(self.device), self.history_segmentor.to(self.device)], self.optimizer, opt_level=parallel_cfg['opt_level']
-            )
-            self.history_segmentor = BuildDistributedModel(model=self.history_segmentor, model_cfg={})
-        else:
-            self.segmentor = self.segmentor.to(self.device)
-        self.segmentor = BuildDistributedModel(model=self.segmentor, model_cfg={'delay_allreduce': True})
+        if self.history_segmentor is not None:
+            self.history_segmentor = self.history_segmentor.to(self.device)
+            self.history_segmentor = BuildDistributedModel(model=self.history_segmentor, model_cfg=parallel_cfg['parallel_model_cfg'])
+        self.segmentor = self.segmentor.to(self.device)
+        self.segmentor = BuildDistributedModel(model=self.segmentor, model_cfg=parallel_cfg['parallel_model_cfg'])
+        self.grad_scaler = GradScaler(**parallel_cfg['grad_scaler_cfg'])
         # load history checkpoints
         if self.history_segmentor is not None and mode == 'TRAIN':
             history_task_work_dir = os.path.join(runner_cfg['work_dir'], f'task_{runner_cfg["task_id"] - 1}')
@@ -111,7 +105,6 @@ class BaseRunner():
             self.segmentor.load_state_dict(ckpts['segmentor'], strict=True)
             self.optimizer.load_state_dict(ckpts['optimizer'])
             self.scheduler.load(state_dict=ckpts)
-            amp.load_state_dict(ckpts['amp'])
             self.best_score = ckpts['best_score']
     '''start'''
     def start(self):
@@ -127,7 +120,8 @@ class BaseRunner():
                 saveckpts(ckpts=self.state(), savepath=ckpt_path)
                 symlink(ckpt_path, os.path.join(self.task_work_dir, 'latest.pth'))
             if (cur_epoch % self.eval_interval_epochs == 0) or (cur_epoch == self.scheduler.max_epochs):
-                results = self.test(cur_epoch=cur_epoch)
+                with torch.no_grad():
+                    results = self.test(cur_epoch=cur_epoch)
                 if self.cmd_args.local_rank == 0:
                     ckpt_path = os.path.join(self.task_work_dir, f'epoch_{cur_epoch}.pth')
                     if self.best_score <= results[self.choose_best_segmentor_by_metric]:
@@ -177,6 +171,5 @@ class BaseRunner():
             'optimizer': self.optimizer.state_dict(),
             'iters_per_epoch': len(self.train_loader), 
             'task_id': self.runner_cfg['task_id'],
-            'amp': amp.state_dict(),
         })
         return state_dict

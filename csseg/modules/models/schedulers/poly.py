@@ -15,8 +15,9 @@ class PolyScheduler(BaseScheduler):
         )
         self.power = power
     '''step'''
-    def step(self):
-        self.optimizer.step()
+    def step(self, grad_scaler):
+        grad_scaler.step(self.optimizer)
+        grad_scaler.update()
         self.cur_iter += 1
         self.cur_lr = self.updatelr()
     '''updatelr'''
