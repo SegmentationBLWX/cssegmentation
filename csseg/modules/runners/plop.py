@@ -49,7 +49,7 @@ class PLOPRunner(BaseRunner):
                 # --pseudo labeling
                 classifier_adaptive_factor = 1.0
                 if self.history_segmentor is not None:
-                    num_history_known_classes = functools.reduce(lambda a, b: a + b, self.runner_cfg['SEGMENTOR_CFG']['num_known_classes_list'][:-1])
+                    num_history_known_classes = functools.reduce(lambda a, b: a + b, self.runner_cfg['segmentor_cfg']['num_known_classes_list'][:-1])
                     with torch.no_grad():
                         history_outputs = self.history_segmentor(images)
                         history_distillation_feats = history_outputs['distillation_feats']
@@ -83,7 +83,7 @@ class PLOPRunner(BaseRunner):
                     pod_total_loss, pod_losses_log_dict = self.featuresdistillation(
                         history_distillation_feats=history_distillation_feats, 
                         distillation_feats=distillation_feats,
-                        num_known_classes_list=self.runner_cfg['SEGMENTOR_CFG']['num_known_classes_list'],
+                        num_known_classes_list=self.runner_cfg['segmentor_cfg']['num_known_classes_list'],
                         **losses_cfgs['distillation']
                     )
                 # --merge two losses
@@ -101,7 +101,7 @@ class PLOPRunner(BaseRunner):
     '''findmedianforpseudolabeling'''
     def findmedianforpseudolabeling(self):
         # initialize
-        num_known_classes = functools.reduce(lambda a, b: a + b, self.runner_cfg['SEGMENTOR_CFG']['num_known_classes_list'])
+        num_known_classes = functools.reduce(lambda a, b: a + b, self.runner_cfg['segmentor_cfg']['num_known_classes_list'])
         max_value = torch.log(torch.tensor(num_known_classes).float().to(self.device))
         num_bins = 100
         histograms = torch.zeros(num_known_classes, num_bins).long().to(self.device)

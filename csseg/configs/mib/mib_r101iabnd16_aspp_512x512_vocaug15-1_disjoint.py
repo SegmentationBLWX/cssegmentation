@@ -16,7 +16,7 @@ RUNNER_CFG['scheduler_cfg'] = [
     SCHEDULER_CFG_POLY.copy() for _ in range(6)
 ]
 RUNNER_CFG['scheduler_cfg'][0]['max_epochs'] = 30
-RUNNER_CFG['scheduler_cfg'][0]['lr'] = 0.01
+RUNNER_CFG['scheduler_cfg'][0]['lr'] = 0.02
 for i in range(1, 6):
     RUNNER_CFG['scheduler_cfg'][i]['max_epochs'] = 30
     RUNNER_CFG['scheduler_cfg'][i]['lr'] = 0.001
