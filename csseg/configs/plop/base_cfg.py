@@ -34,7 +34,7 @@ SEGMENTOR_CFG = {
     }
 }
 # RUNNER_CFG
-RUNNER_CFG.update = {
+RUNNER_CFG = {
     'type': 'PLOPRunner',
     'algorithm': 'PLOP',
     'task_name': '',
