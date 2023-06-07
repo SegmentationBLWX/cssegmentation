@@ -113,6 +113,8 @@ class BaseRunner():
             self.logger_handle.info(f'Config Details: \n{self.runner_cfg}')
         self.preparefortrain()
         for cur_epoch in range(self.scheduler.cur_epoch, self.scheduler.max_epochs+1):
+            if self.cmd_args.local_rank == 0:
+                self.logger_handle.info(f'Start to train {self.runner_cfg["algorithm"]} at Task {self.runner_cfg["task_id"]}, Epoch {cur_epoch}')
             self.train(cur_epoch=cur_epoch)
             self.scheduler.cur_epoch = cur_epoch
             if ((cur_epoch % self.save_interval_epochs == 0) or (cur_epoch == self.scheduler.max_epochs)) and (self.cmd_args.local_rank == 0):
@@ -173,3 +175,20 @@ class BaseRunner():
             'task_id': self.runner_cfg['task_id'],
         })
         return state_dict
+    '''loggingtraininginfo'''
+    def loggingtraininginfo(self, seg_losses_log_dict, losses_log_dict, init_losses_log_dict):
+        for key, value in seg_losses_log_dict.items():
+            if key in losses_log_dict:
+                losses_log_dict[key].append(value)
+            else:
+                losses_log_dict[key] = [value]
+        losses_log_dict.update({
+            'epoch': self.scheduler.cur_epoch, 'iteration': self.scheduler.cur_iter, 'lr': self.scheduler.cur_lr
+        })
+        if (self.scheduler.cur_iter % self.log_interval_iterations == 0) and (self.cmd_args.local_rank == 0):
+            for key, value in losses_log_dict.copy().items():
+                if isinstance(value, list):
+                    losses_log_dict[key] = sum(value) / len(value)
+            self.logger_handle.info(losses_log_dict)
+            losses_log_dict = copy.deepcopy(init_losses_log_dict)
+        return losses_log_dict

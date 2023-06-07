@@ -9,7 +9,6 @@ import torch
 import functools
 import torch.nn.functional as F
 import torch.distributed as dist
-from torch import autocast
 from .base import BaseRunner
 
 
@@ -21,9 +20,6 @@ class MIBRunner(BaseRunner):
         )
     '''train'''
     def train(self, cur_epoch):
-        # logging start task info
-        if self.cmd_args.local_rank == 0:
-            self.logger_handle.info(f'Start to train {self.runner_cfg["algorithm"]} at Task {self.runner_cfg["task_id"]}, Epoch {cur_epoch}')
         # initialize
         losses_cfgs = copy.deepcopy(self.losses_cfgs)
         init_losses_log_dict = {
@@ -35,68 +31,49 @@ class MIBRunner(BaseRunner):
         self.train_loader.sampler.set_epoch(cur_epoch)
         # start to iter
         for batch_idx, data_meta in enumerate(self.train_loader):
-            # --fetch data
-            images = data_meta['image'].to(self.device, dtype=torch.float32)
-            seg_targets = data_meta['seg_target'].to(self.device, dtype=torch.long)
-            # --feed to history_segmentor
-            if self.history_segmentor is not None:
-                with torch.no_grad():
-                    with autocast(device_type='cuda', dtype=torch.float16):
+            # --mixed precision training
+            with torch.autocast(device_type='cuda', dtype=torch.float16):
+                # --fetch data
+                images = data_meta['image'].to(self.device, dtype=torch.float32)
+                seg_targets = data_meta['seg_target'].to(self.device, dtype=torch.long)
+                # --feed to history_segmentor
+                if self.history_segmentor is not None:
+                    with torch.no_grad():
                         history_outputs = self.history_segmentor(images)
-            # --set zero gradient
-            self.scheduler.zerograd()
-            # --forward to segmentor
-            with autocast(device_type='cuda', dtype=torch.float16):
+                # --forward to segmentor
                 outputs = self.segmentor(images)
-            # --calculate segmentation losses
-            seg_losses_cfgs = copy.deepcopy(losses_cfgs['segmentation_cl']) if self.history_segmentor is not None else copy.deepcopy(losses_cfgs['segmentation_init'])
-            if self.history_segmentor is not None:
-                num_history_known_classes = functools.reduce(lambda a, b: a + b, self.runner_cfg['segmentor_cfg']['num_known_classes_list'][:-1])
-                for _, seg_losses_cfg in seg_losses_cfgs.items():
-                    for loss_type, loss_cfg in seg_losses_cfg.items():
-                        loss_cfg.update({'num_history_known_classes': num_history_known_classes, 'reduction': 'none'})
-            with autocast(device_type='cuda', dtype=torch.float16):
+                # --calculate segmentation losses
+                seg_losses_cfgs = copy.deepcopy(losses_cfgs['segmentation_cl']) if self.history_segmentor is not None else copy.deepcopy(losses_cfgs['segmentation_init'])
+                if self.history_segmentor is not None:
+                    num_history_known_classes = functools.reduce(lambda a, b: a + b, self.runner_cfg['segmentor_cfg']['num_known_classes_list'][:-1])
+                    for _, seg_losses_cfg in seg_losses_cfgs.items():
+                        for loss_type, loss_cfg in seg_losses_cfg.items():
+                            loss_cfg.update({'num_history_known_classes': num_history_known_classes, 'reduction': 'none'})
                 seg_total_loss, seg_losses_log_dict = self.segmentor.module.calculateseglosses(
                     seg_logits=outputs['seg_logits'], 
                     seg_targets=seg_targets, 
                     losses_cfgs=seg_losses_cfgs,
                 )
-            # --calculate distillatio losses
-            kd_total_loss, kd_losses_log_dict = 0, {}
-            if self.history_segmentor is not None:
-                with autocast(device_type='cuda', dtype=torch.float16):
+                # --calculate distillatio losses
+                kd_total_loss, kd_losses_log_dict = 0, {}
+                if self.history_segmentor is not None:
                     kd_total_loss, kd_losses_log_dict = self.featuresdistillation(
                         history_distillation_feats=F.interpolate(history_outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners), 
                         distillation_feats=F.interpolate(outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners),
                         **losses_cfgs['distillation']
                     )
-            # --merge two losses
-            with autocast(device_type='cuda', dtype=torch.float16):
+                # --merge two losses
                 loss_total = kd_total_loss + seg_total_loss
             # --perform back propagation
             self.grad_scaler.scale(loss_total).backward()
             self.scheduler.step(self.grad_scaler)
+            # --set zero gradient
+            self.scheduler.zerograd()
             # --logging training loss info
             seg_losses_log_dict.update(kd_losses_log_dict)
             seg_losses_log_dict.pop('loss_total')
-            for key, value in seg_losses_log_dict.items():
-                if key in losses_log_dict:
-                    losses_log_dict[key].append(value)
-                else:
-                    losses_log_dict[key] = [value]
-            if 'loss_total' in losses_log_dict:
-                losses_log_dict['loss_total'].append(loss_total.item())
-            else:
-                losses_log_dict['loss_total'] = [loss_total.item()]
-            losses_log_dict.update({
-                'epoch': self.scheduler.cur_epoch, 'iteration': self.scheduler.cur_iter, 'lr': self.scheduler.cur_lr
-            })
-            if (self.scheduler.cur_iter % self.log_interval_iterations == 0) and (self.cmd_args.local_rank == 0):
-                for key, value in losses_log_dict.copy().items():
-                    if isinstance(value, list):
-                        losses_log_dict[key] = sum(value) / len(value)
-                self.logger_handle.info(losses_log_dict)
-                losses_log_dict = copy.deepcopy(init_losses_log_dict)
+            seg_losses_log_dict['loss_total'] = loss_total.item()
+            losses_log_dict = self.loggingtraininginfo(seg_losses_log_dict, losses_log_dict, init_losses_log_dict)
     '''featuresdistillation'''
     @staticmethod
     def featuresdistillation(history_distillation_feats, distillation_feats, reduction='mean', alpha=1., scale_factor=10):
