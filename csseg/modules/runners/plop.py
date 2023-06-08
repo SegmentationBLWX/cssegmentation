@@ -85,11 +85,11 @@ class PLOPRunner(BaseRunner):
                     **losses_cfgs['distillation']
                 )
             # --merge two losses
-            with torch.autocast(device_type='cuda', dtype=torch.float16):
-                loss_total = pod_total_loss + seg_total_loss
+            loss_total = pod_total_loss + seg_total_loss
             # --perform back propagation
-            self.grad_scaler.scale(loss_total).backward()
-            self.scheduler.step(self.grad_scaler)
+            with amp.scale_loss(loss_total, self.optimizer) as scaled_loss_total:
+                scaled_loss_total.backward()
+            self.scheduler.step()
             # --set zero gradient
             self.scheduler.zerograd()
             # --logging training loss info
@@ -149,7 +149,6 @@ class PLOPRunner(BaseRunner):
         return -factor * torch.mean(probabilities * torch.log(probabilities + eps), dim=1)
     '''featuresdistillation'''
     @staticmethod
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def featuresdistillation(history_distillation_feats, distillation_feats, pod_factor=0.01, pod_factor_last_scale=0.0005, spp_scales=[1, 2, 4], num_known_classes_list=None):
         # assert and initialize
         assert len(history_distillation_feats) == len(distillation_feats)

@@ -19,7 +19,6 @@ class CrossEntropyLoss(nn.Module):
         self.ignore_index = ignore_index
         self.label_smoothing = label_smoothing
     '''forward'''
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def forward(self, prediction, target):
         # construct config
         ce_args = {
@@ -47,7 +46,6 @@ class MIBUnbiasedCrossEntropyLoss(nn.Module):
         self.ignore_index = ignore_index
         self.num_history_known_classes = num_history_known_classes
     '''forward'''
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def forward(self, prediction, target):
         # calculate loss according to config
         num_history_known_classes = self.num_history_known_classes
