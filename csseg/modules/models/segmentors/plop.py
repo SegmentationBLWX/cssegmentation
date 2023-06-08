@@ -17,6 +17,7 @@ class PLOPSegmentor(BaseSegmentor):
             align_corners=align_corners, encoder_cfg=encoder_cfg, decoder_cfg=decoder_cfg,
         )
     '''forward'''
+    @torch.autocast()
     def forward(self, x):
         img_size = x.shape[2:]
         # feed to encoder

@@ -40,53 +40,52 @@ class PLOPRunner(BaseRunner):
             thresholds, max_entropy = self.thresholds, self.max_entropy
         # start to iter
         for batch_idx, data_meta in enumerate(self.train_loader):
-            # --mixed precision training
-            with torch.autocast(device_type='cuda', dtype=torch.float16):
-                # --fetch data
-                images = data_meta['image'].to(self.device, dtype=torch.float32)
-                seg_targets = data_meta['seg_target'].to(self.device, dtype=torch.long)
-                seg_targets_mergepseudolabels = seg_targets.clone()
-                # --pseudo labeling
-                classifier_adaptive_factor = 1.0
-                if self.history_segmentor is not None:
-                    num_history_known_classes = functools.reduce(lambda a, b: a + b, self.runner_cfg['segmentor_cfg']['num_known_classes_list'][:-1])
-                    with torch.no_grad():
-                        history_outputs = self.history_segmentor(images)
-                        history_distillation_feats = history_outputs['distillation_feats']
-                        history_distillation_feats.append(history_outputs['seg_logits'])
-                        history_seg_logits = F.interpolate(history_outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners)
-                    background_mask = (seg_targets < num_history_known_classes)
-                    history_seg_probs = torch.softmax(history_seg_logits, dim=1)
-                    max_history_seg_probs, pseudo_labels = history_seg_probs.max(dim=1)
-                    valid_pseudo_mask = (self.entropy(history_seg_probs) / max_entropy) < thresholds[pseudo_labels]
-                    seg_targets_mergepseudolabels[~valid_pseudo_mask & background_mask] = 255
-                    seg_targets_mergepseudolabels[valid_pseudo_mask & background_mask] = pseudo_labels[valid_pseudo_mask & background_mask]
-                    classifier_adaptive_factor = (valid_pseudo_mask & background_mask).float().sum(dim=(1, 2)) / (background_mask.float().sum(dim=(1, 2)) + self.eps)
-                    classifier_adaptive_factor = classifier_adaptive_factor[:, None, None]
-                # --forward to segmentor
-                outputs = self.segmentor(images)
-                # --calculate segmentation losses
-                seg_losses_cfgs = copy.deepcopy(losses_cfgs['segmentation_cl']) if self.history_segmentor is not None else copy.deepcopy(losses_cfgs['segmentation_init'])
-                for _, seg_losses_cfg in seg_losses_cfgs.items():
-                    for loss_type, loss_cfg in seg_losses_cfg.items():
-                        loss_cfg.update({'scale_factor': classifier_adaptive_factor, 'reduction': 'none'})
-                seg_total_loss, seg_losses_log_dict = self.segmentor.module.calculateseglosses(
-                    seg_logits=outputs['seg_logits'], 
-                    seg_targets=seg_targets_mergepseudolabels, 
-                    losses_cfgs=seg_losses_cfgs,
+            # --fetch data
+            images = data_meta['image'].to(self.device, dtype=torch.float32)
+            seg_targets = data_meta['seg_target'].to(self.device, dtype=torch.long)
+            seg_targets_mergepseudolabels = seg_targets.clone()
+            # --pseudo labeling
+            classifier_adaptive_factor = 1.0
+            if self.history_segmentor is not None:
+                num_history_known_classes = functools.reduce(lambda a, b: a + b, self.runner_cfg['segmentor_cfg']['num_known_classes_list'][:-1])
+                with torch.no_grad():
+                    history_outputs = self.history_segmentor(images)
+                    history_distillation_feats = history_outputs['distillation_feats']
+                    history_distillation_feats.append(history_outputs['seg_logits'])
+                    history_seg_logits = F.interpolate(history_outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners)
+                background_mask = (seg_targets < num_history_known_classes)
+                history_seg_probs = torch.softmax(history_seg_logits, dim=1)
+                max_history_seg_probs, pseudo_labels = history_seg_probs.max(dim=1)
+                valid_pseudo_mask = (self.entropy(history_seg_probs) / max_entropy) < thresholds[pseudo_labels]
+                seg_targets_mergepseudolabels[~valid_pseudo_mask & background_mask] = 255
+                seg_targets_mergepseudolabels[valid_pseudo_mask & background_mask] = pseudo_labels[valid_pseudo_mask & background_mask]
+                classifier_adaptive_factor = (valid_pseudo_mask & background_mask).float().sum(dim=(1, 2)) / (background_mask.float().sum(dim=(1, 2)) + self.eps)
+                classifier_adaptive_factor = classifier_adaptive_factor[:, None, None]
+            # --forward to segmentor
+            outputs = self.segmentor(images)
+            # --calculate segmentation losses
+            seg_losses_cfgs = copy.deepcopy(losses_cfgs['segmentation_cl']) if self.history_segmentor is not None else copy.deepcopy(losses_cfgs['segmentation_init'])
+            for _, seg_losses_cfg in seg_losses_cfgs.items():
+                for loss_type, loss_cfg in seg_losses_cfg.items():
+                    loss_cfg.update({'scale_factor': classifier_adaptive_factor, 'reduction': 'none'})
+            seg_total_loss, seg_losses_log_dict = self.segmentor.module.calculateseglosses(
+                seg_logits=outputs['seg_logits'], 
+                seg_targets=seg_targets_mergepseudolabels, 
+                losses_cfgs=seg_losses_cfgs,
+            )
+            # --calculate distillatio losses
+            pod_total_loss, pod_losses_log_dict = 0, {}
+            if self.history_segmentor is not None:
+                distillation_feats = outputs['distillation_feats']
+                distillation_feats.append(outputs['seg_logits'])
+                pod_total_loss, pod_losses_log_dict = self.featuresdistillation(
+                    history_distillation_feats=history_distillation_feats, 
+                    distillation_feats=distillation_feats,
+                    num_known_classes_list=self.runner_cfg['segmentor_cfg']['num_known_classes_list'],
+                    **losses_cfgs['distillation']
                 )
-                # --calculate distillatio losses
-                pod_total_loss, pod_losses_log_dict = 0, {}
-                if self.history_segmentor is not None:
-                    distillation_feats = outputs['distillation_feats']
-                    distillation_feats.append(outputs['seg_logits'])
-                    pod_total_loss, pod_losses_log_dict = self.featuresdistillation(
-                        history_distillation_feats=history_distillation_feats, 
-                        distillation_feats=distillation_feats,
-                        num_known_classes_list=self.runner_cfg['segmentor_cfg']['num_known_classes_list'],
-                        **losses_cfgs['distillation']
-                    )
-                # --merge two losses
+            # --merge two losses
+            with torch.autocast(device_type='cuda', dtype=torch.float16):
                 loss_total = pod_total_loss + seg_total_loss
             # --perform back propagation
             self.grad_scaler.scale(loss_total).backward()
@@ -150,6 +149,7 @@ class PLOPRunner(BaseRunner):
         return -factor * torch.mean(probabilities * torch.log(probabilities + eps), dim=1)
     '''featuresdistillation'''
     @staticmethod
+    @torch.autocast()
     def featuresdistillation(history_distillation_feats, distillation_feats, pod_factor=0.01, pod_factor_last_scale=0.0005, spp_scales=[1, 2, 4], num_known_classes_list=None):
         # assert and initialize
         assert len(history_distillation_feats) == len(distillation_feats)

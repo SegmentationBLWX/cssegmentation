@@ -33,6 +33,7 @@ class BaseSegmentor(nn.Module):
             nn.Conv2d(self.decoder.out_channels, num_classes, kernel_size=1, stride=1, padding=0) for num_classes in num_known_classes_list
         ])
     '''forward'''
+    @torch.autocast()
     def forward(self, x):
         img_size = x.shape[2:]
         # feed to encoder
@@ -82,3 +83,11 @@ class BaseSegmentor(nn.Module):
             selected_indices = [selected_indices]
         outputs = [inputs[idx] for idx in selected_indices]
         return outputs if len(selected_indices) > 1 else outputs[0]
+    '''architectures'''
+    def architectures(self):
+        architectures = {
+            'encoder': self.encoder,
+            'decoder': self.decoder,
+            'convs_cls': self.convs_cls,
+        }
+        return architectures

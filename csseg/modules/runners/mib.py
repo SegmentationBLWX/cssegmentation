@@ -31,38 +31,37 @@ class MIBRunner(BaseRunner):
         self.train_loader.sampler.set_epoch(cur_epoch)
         # start to iter
         for batch_idx, data_meta in enumerate(self.train_loader):
-            # --mixed precision training
-            with torch.autocast(device_type='cuda', dtype=torch.float16):
-                # --fetch data
-                images = data_meta['image'].to(self.device, dtype=torch.float32)
-                seg_targets = data_meta['seg_target'].to(self.device, dtype=torch.long)
-                # --feed to history_segmentor
-                if self.history_segmentor is not None:
-                    with torch.no_grad():
-                        history_outputs = self.history_segmentor(images)
-                # --forward to segmentor
-                outputs = self.segmentor(images)
-                # --calculate segmentation losses
-                seg_losses_cfgs = copy.deepcopy(losses_cfgs['segmentation_cl']) if self.history_segmentor is not None else copy.deepcopy(losses_cfgs['segmentation_init'])
-                if self.history_segmentor is not None:
-                    num_history_known_classes = functools.reduce(lambda a, b: a + b, self.runner_cfg['segmentor_cfg']['num_known_classes_list'][:-1])
-                    for _, seg_losses_cfg in seg_losses_cfgs.items():
-                        for loss_type, loss_cfg in seg_losses_cfg.items():
-                            loss_cfg.update({'num_history_known_classes': num_history_known_classes, 'reduction': 'none'})
-                seg_total_loss, seg_losses_log_dict = self.segmentor.module.calculateseglosses(
-                    seg_logits=outputs['seg_logits'], 
-                    seg_targets=seg_targets, 
-                    losses_cfgs=seg_losses_cfgs,
+            # --fetch data
+            images = data_meta['image'].to(self.device, dtype=torch.float32)
+            seg_targets = data_meta['seg_target'].to(self.device, dtype=torch.long)
+            # --feed to history_segmentor
+            if self.history_segmentor is not None:
+                with torch.no_grad():
+                    history_outputs = self.history_segmentor(images)
+            # --forward to segmentor
+            outputs = self.segmentor(images)
+            # --calculate segmentation losses
+            seg_losses_cfgs = copy.deepcopy(losses_cfgs['segmentation_cl']) if self.history_segmentor is not None else copy.deepcopy(losses_cfgs['segmentation_init'])
+            if self.history_segmentor is not None:
+                num_history_known_classes = functools.reduce(lambda a, b: a + b, self.runner_cfg['segmentor_cfg']['num_known_classes_list'][:-1])
+                for _, seg_losses_cfg in seg_losses_cfgs.items():
+                    for loss_type, loss_cfg in seg_losses_cfg.items():
+                        loss_cfg.update({'num_history_known_classes': num_history_known_classes, 'reduction': 'none'})
+            seg_total_loss, seg_losses_log_dict = self.segmentor.module.calculateseglosses(
+                seg_logits=outputs['seg_logits'], 
+                seg_targets=seg_targets, 
+                losses_cfgs=seg_losses_cfgs,
+            )
+            # --calculate distillatio losses
+            kd_total_loss, kd_losses_log_dict = 0, {}
+            if self.history_segmentor is not None:
+                kd_total_loss, kd_losses_log_dict = self.featuresdistillation(
+                    history_distillation_feats=F.interpolate(history_outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners), 
+                    distillation_feats=F.interpolate(outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners),
+                    **losses_cfgs['distillation']
                 )
-                # --calculate distillatio losses
-                kd_total_loss, kd_losses_log_dict = 0, {}
-                if self.history_segmentor is not None:
-                    kd_total_loss, kd_losses_log_dict = self.featuresdistillation(
-                        history_distillation_feats=F.interpolate(history_outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners), 
-                        distillation_feats=F.interpolate(outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners),
-                        **losses_cfgs['distillation']
-                    )
-                # --merge two losses
+            # --merge two losses
+            with torch.autocast(device_type='cuda', dtype=torch.float16):
                 loss_total = kd_total_loss + seg_total_loss
             # --perform back propagation
             self.grad_scaler.scale(loss_total).backward()
@@ -76,6 +75,7 @@ class MIBRunner(BaseRunner):
             losses_log_dict = self.loggingtraininginfo(seg_losses_log_dict, losses_log_dict, init_losses_log_dict)
     '''featuresdistillation'''
     @staticmethod
+    @torch.autocast()
     def featuresdistillation(history_distillation_feats, distillation_feats, reduction='mean', alpha=1., scale_factor=10):
         new_cl = distillation_feats.shape[1] - history_distillation_feats.shape[1]
         history_distillation_feats = history_distillation_feats * alpha
