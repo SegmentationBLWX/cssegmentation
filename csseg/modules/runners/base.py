@@ -81,6 +81,7 @@ class BaseRunner():
         # build scheduler
         self.scheduler = BuildScheduler(optimizer=self.optimizer, scheduler_cfg=scheduler_cfg) if mode == 'TRAIN' else None
         # parallel segmentor
+        parallel_cfg = runner_cfg['parallel_cfg']
         if self.history_segmentor is None and mode == 'TRAIN':
             self.segmentor, self.optimizer = amp.initialize(
                 self.segmentor.to(self.device), self.optimizer, opt_level=parallel_cfg['opt_level']
