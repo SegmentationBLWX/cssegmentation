@@ -75,7 +75,7 @@ class MIBRunner(BaseRunner):
             losses_log_dict = self.loggingtraininginfo(seg_losses_log_dict, losses_log_dict, init_losses_log_dict)
     '''featuresdistillation'''
     @staticmethod
-    @torch.autocast()
+    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def featuresdistillation(history_distillation_feats, distillation_feats, reduction='mean', alpha=1., scale_factor=10):
         new_cl = distillation_feats.shape[1] - history_distillation_feats.shape[1]
         history_distillation_feats = history_distillation_feats * alpha

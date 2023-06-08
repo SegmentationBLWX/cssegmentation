@@ -149,7 +149,7 @@ class PLOPRunner(BaseRunner):
         return -factor * torch.mean(probabilities * torch.log(probabilities + eps), dim=1)
     '''featuresdistillation'''
     @staticmethod
-    @torch.autocast()
+    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def featuresdistillation(history_distillation_feats, distillation_feats, pod_factor=0.01, pod_factor_last_scale=0.0005, spp_scales=[1, 2, 4], num_known_classes_list=None):
         # assert and initialize
         assert len(history_distillation_feats) == len(distillation_feats)

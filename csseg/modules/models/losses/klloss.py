@@ -18,7 +18,7 @@ class KLDivLoss(nn.Module):
         self.temperature = temperature
         self.scale_factor = scale_factor
     '''forward'''
-    @torch.autocast()
+    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def forward(self, prediction, target):
         # assert
         assert prediction.size() == target.size()
