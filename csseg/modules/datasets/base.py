@@ -55,10 +55,10 @@ class _BaseDataset(torch.utils.data.Dataset):
         imagepath = os.path.join(self.image_dir, f'{imageid}.jpg')
         annpath = os.path.join(self.ann_dir, f'{imageid}.png')
         # read image and seg_target
-        image, seg_target = Image.open(imagepath).convert('RGB'), None
+        image, seg_target = np.array(Image.open(imagepath).convert('RGB'))[::-1], None
         if self.mode == 'TRAIN': assert os.path.exists(annpath)
         if os.path.exists(annpath):
-            seg_target = Image.open(annpath)
+            seg_target = np.array(Image.open(annpath))
         # perform transforms
         data_meta = {
             'image': image, 'seg_target': seg_target, 'imageid': imageid,
