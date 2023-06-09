@@ -61,7 +61,7 @@ class _BaseDataset(torch.utils.data.Dataset):
         # perform transforms
         data_meta = {
             'image': image, 'seg_target': seg_target, 'imageid': imageid,
-            'width': image.size[0], 'height': image.size[1],
+            'width': image.shape[1], 'height': image.shape[0],
         }
         data_meta = self.transforms(data_meta) if self.transforms is not None else data_meta
         # return
