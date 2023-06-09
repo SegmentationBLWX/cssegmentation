@@ -1,6 +1,6 @@
 '''initialize'''
 from .evaluators import SegmentationEvaluator
 from .transforms import (
-    Resize, RandomCrop, RandomFlip, PhotoMetricDistortion,
-    RandomRotation, Padding, ToTensor, Normalize, Compose, EdgeExtractor
+    Compose, Resize, CenterCrop, Pad, Lambda, RandomRotation, RandomHorizontalFlip, RandomVerticalFlip,
+    ToTensor, Normalize, RandomCrop, RandomResizedCrop, ColorJitter
 )

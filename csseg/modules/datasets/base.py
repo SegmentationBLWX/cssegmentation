@@ -11,9 +11,10 @@ import torchvision
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
+from .pipelines import SegmentationEvaluator
 from .pipelines import (
-    Resize, RandomCrop, RandomFlip, PhotoMetricDistortion, SegmentationEvaluator,
-    RandomRotation, Padding, ToTensor, Normalize, Compose, EdgeExtractor
+    Compose, Resize, CenterCrop, Pad, Lambda, RandomRotation, RandomHorizontalFlip, RandomVerticalFlip,
+    ToTensor, Normalize, RandomCrop, RandomResizedCrop, ColorJitter
 )
 
 
@@ -54,14 +55,14 @@ class _BaseDataset(torch.utils.data.Dataset):
         imagepath = os.path.join(self.image_dir, f'{imageid}.jpg')
         annpath = os.path.join(self.ann_dir, f'{imageid}.png')
         # read image and seg_target
-        image, seg_target = np.array(Image.open(imagepath).convert('RGB'))[::-1], None
+        image, seg_target = Image.open(imagepath).convert('RGB'), None
         if self.mode == 'TRAIN': assert os.path.exists(annpath)
         if os.path.exists(annpath):
-            seg_target = np.array(Image.open(annpath))
+            seg_target = Image.open(annpath)
         # perform transforms
         data_meta = {
             'image': image, 'seg_target': seg_target, 'imageid': imageid,
-            'width': image.shape[1], 'height': image.shape[0],
+            'width': image.size[0], 'height': image.size[1],
         }
         data_meta = self.transforms(data_meta) if self.transforms is not None else data_meta
         # return
@@ -75,9 +76,10 @@ class _BaseDataset(torch.utils.data.Dataset):
         if transform_settings is None: return transform_settings
         # supported transforms
         supported_transforms = {
-            'Resize': Resize, 'RandomCrop': RandomCrop, 'RandomFlip': RandomFlip, 'PhotoMetricDistortion': PhotoMetricDistortion,
-            'RandomRotation': RandomRotation, 'Padding': Padding, 'ToTensor': ToTensor, 'Normalize': Normalize, 'Compose': Compose, 
-            'EdgeExtractor': EdgeExtractor,
+            'Resize': Resize, 'CenterCrop': CenterCrop, 'Pad': Pad, 'Lambda': Lambda, 
+            'RandomRotation': RandomRotation, 'RandomHorizontalFlip': RandomHorizontalFlip, 
+            'RandomVerticalFlip': RandomVerticalFlip, 'ToTensor': ToTensor, 'Normalize': Normalize, 
+            'RandomCrop': RandomCrop, 'RandomResizedCrop': RandomResizedCrop, 'ColorJitter': ColorJitter,
         }
         # construct transforms
         transforms = []
