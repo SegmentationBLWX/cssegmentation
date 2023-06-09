@@ -122,8 +122,8 @@ class BaseRunner():
         for cur_epoch in range(self.scheduler.cur_epoch, self.scheduler.max_epochs+1):
             if self.cmd_args.local_rank == 0:
                 self.logger_handle.info(f'Start to train {self.runner_cfg["algorithm"]} at Task {self.runner_cfg["task_id"]}, Epoch {cur_epoch}')
-            self.train(cur_epoch=cur_epoch)
             self.scheduler.cur_epoch = cur_epoch
+            self.train(cur_epoch=cur_epoch)
             if ((cur_epoch % self.save_interval_epochs == 0) or (cur_epoch == self.scheduler.max_epochs)) and (self.cmd_args.local_rank == 0):
                 ckpt_path = os.path.join(self.task_work_dir, f'epoch_{cur_epoch}.pth')
                 saveckpts(ckpts=self.state(), savepath=ckpt_path)
