@@ -11,10 +11,9 @@ import torchvision
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
-from .pipelines import SegmentationEvaluator
 from .pipelines import (
-    Compose, Resize, CenterCrop, Pad, Lambda, RandomRotation, RandomHorizontalFlip, RandomVerticalFlip,
-    ToTensor, Normalize, RandomCrop, RandomResizedCrop, ColorJitter
+    Resize, RandomCrop, RandomFlip, PhotoMetricDistortion, SegmentationEvaluator,
+    RandomRotation, Padding, ToTensor, Normalize, Compose, EdgeExtractor
 )
 
 
@@ -76,10 +75,9 @@ class _BaseDataset(torch.utils.data.Dataset):
         if transform_settings is None: return transform_settings
         # supported transforms
         supported_transforms = {
-            'Resize': Resize, 'CenterCrop': CenterCrop, 'Pad': Pad, 'Lambda': Lambda, 
-            'RandomRotation': RandomRotation, 'RandomHorizontalFlip': RandomHorizontalFlip, 
-            'RandomVerticalFlip': RandomVerticalFlip, 'ToTensor': ToTensor, 'Normalize': Normalize, 
-            'RandomCrop': RandomCrop, 'RandomResizedCrop': RandomResizedCrop, 'ColorJitter': ColorJitter,
+            'Resize': Resize, 'RandomCrop': RandomCrop, 'RandomFlip': RandomFlip, 'PhotoMetricDistortion': PhotoMetricDistortion,
+            'RandomRotation': RandomRotation, 'Padding': Padding, 'ToTensor': ToTensor, 'Normalize': Normalize, 'Compose': Compose, 
+            'EdgeExtractor': EdgeExtractor,
         }
         # construct transforms
         transforms = []
