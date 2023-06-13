@@ -78,7 +78,7 @@ class ASPPHead(nn.Module):
         outputs = self.bottleneck_conv(outputs)
         # feed to global branch
         global_feats = self.global_branch(x)
-        global_feats = F.interpolate(global_feats, size=input_size[2:], mode='bilinear', align_corners=self.align_corners)
+        global_feats = global_feats.repeat(1, 1, x.size(2), x.size(3))
         # shortcut
         outputs = outputs + global_feats
         outputs = self.bottleneck_bn(outputs)
