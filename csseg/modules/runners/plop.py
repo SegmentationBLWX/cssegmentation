@@ -23,7 +23,7 @@ class PLOPRunner(BaseRunner):
     '''preparefortrain'''
     def preparefortrain(self):
         if self.history_segmentor is not None:
-            self.thresholds, self.max_entropy = self.findmedianforpseudolabeling()
+            self.thresholds, self.max_entropy = self.autocastforward(self.findmedianforpseudolabeling, {})
     '''train'''
     def train(self, cur_epoch):
         # initialize
