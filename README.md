@@ -41,22 +41,30 @@ You can star this repository to keep track of the project if it's helpful for yo
 
 #### Supported Encoder
 
-- [ResNet](https://arxiv.org/pdf/1512.03385.pdf)
+| Encoder                | Model Zoo                                                   | Paper Link                                                    | Code Snippet                                             |
+| :-:                    | :-:                                                         | :-:                                                           | :-:                                                      |
+| ResNet                 | [click](./docs/modelzoo/mib)                                | [CVPR 2016](https://arxiv.org/pdf/1512.03385.pdf)             | [click](./csseg/modules/models/encoders/resnet.py)       |
 
 #### Supported Decoder
 
-- [Deeplabv3](https://arxiv.org/pdf/1706.05587.pdf)
+| Decoder                | Model Zoo                                                   | Paper Link                                                    | Code Snippet                                             |
+| :-:                    | :-:                                                         | :-:                                                           | :-:                                                      |
+| Deeplabv3              | [click](./docs/modelzoo/mib)                                | [ArXiv 2017](https://arxiv.org/pdf/1706.05587.pdf)            | [click](./csseg/modules/models/decoders/aspphead.py)     |
 
 #### Supported Runner
 
-- [MIB](https://github.com/SegmentationBLWX/cssegmentation/tree/main/docs/modelzoo/mib)
-- [PLOP](https://github.com/SegmentationBLWX/cssegmentation/tree/main/docs/modelzoo/plop)
-- [RCIL]()
+| Runner                 | Model Zoo                                                   | Paper Link                                                    | Code Snippet                                             |
+| :-:                    | :-:                                                         | :-:                                                           | :-:                                                      |
+| MIB                    | [click](./docs/modelzoo/mib)                                | [CVPR 2020](https://arxiv.org/pdf/2002.00718.pdf)             | [click](./csseg/modules/runners/mib.py)                  |
+| PLOP                   | [click](./docs/modelzoo/plop)                               | [CVPR 2021](https://arxiv.org/pdf/2011.11390.pdf)             | [click](./csseg/modules/runners/plop.py)                 |
+| RCIL                   | [click](./docs/modelzoo/rcil)                               | [CVPR 2022](https://arxiv.org/pdf/2203.05402.pdf)             | [click](./csseg/modules/runners/rcil.py)                 |
 
 #### Supported Datasets
 
-- [ADE20k](https://groups.csail.mit.edu/vision/datasets/ADE20K/)
-- [PASCAL VOC](http://host.robots.ox.ac.uk/pascal/VOC/)
+| Dataset                | Project Link                                                                               | Paper Link                                                                                | Code Snippet                                             |
+| :-:                    | :-:                                                                                        | :-:                                                                                       | :-:                                                      |
+| ADE20k                 | [Click](https://groups.csail.mit.edu/vision/datasets/ADE20K/)                              | [CVPR 2017](https://arxiv.org/pdf/1608.05442.pdf)                                         | [Click](./csseg/modules/datasets/ade20k.py)              |
+| PASCAL VOC             | [Click](http://host.robots.ox.ac.uk/pascal/VOC/)                                           | [IJCV 2010](http://host.robots.ox.ac.uk/pascal/VOC/pubs/everingham10.pdf)                 | [Click](./csseg/modules/datasets/voc.py)                 |
 
 
 ## Citation

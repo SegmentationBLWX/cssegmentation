@@ -1,0 +1,4 @@
+-r requirements/io.txt
+-r requirements/science.txt
+-r requirements/optional.txt
+-r requirements/terminal.txt

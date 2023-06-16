@@ -24,12 +24,14 @@
 
 #### PASCAL VOC
 
-| Backbone  | Crop Size  | Setting                             | mIoU   | Download                                                                                                                                                                                                                                                                                                                                                                                       |
-| :-:       | :-:        | :-:                                 | :-:    | :-:                                                                                                                                                                                                                                                                                                                                                                                            |
-| R-101-D8  | 512x512    | 15-5-disjoint                       |        | [cfg]() &#124; [model]() &#124; [log]()    |
-| R-101-D8  | 512x512    | 15-5-overlapped                     |        | [cfg]() &#124; [model]() &#124; [log]()    |
-| R-101-D8  | 512x512    | 15-1-disjoint                       |        | [cfg]() &#124; [model]() &#124; [log]()    |
-| R-101-D8  | 512x512    | 15-1-overlapped                     |        | [cfg]() &#124; [model]() &#124; [log]()    |
-| R-101-D8  | 512x512    | 10-1-disjoint                       |        | [cfg]() &#124; [model]() &#124; [log]()    |
-| R-101-D8  | 512x512    | 10-1-overlapped                     |        | [cfg]() &#124; [model]() &#124; [log]()    |
+| Backbone    | Crop Size  | Setting                             | mIoU   | Download                                                                                                                                                                                                                                                                                                                                                                                       |
+| :-:         | :-:        | :-:                                 | :-:    | :-:                                                                                                                                                                                                                                                                                                                                                                                            |
+| R-101-D16   | 512x512    | 15-5-disjoint                       |        | [cfg]() &#124; [modellinks-per-step]() &#124; [log]()    |
+| R-101-D16   | 512x512    | 15-5-overlapped                     |        | [cfg]() &#124; [modellinks-per-step]() &#124; [log]()    |
+| R-101-D16   | 512x512    | 15-1-disjoint                       |        | [cfg]() &#124; [modellinks-per-step]() &#124; [log]()    |
+| R-101-D16   | 512x512    | 15-1-overlapped                     |        | [cfg]() &#124; [modellinks-per-step]() &#124; [log]()    |
+| R-101-D16   | 512x512    | 10-1-disjoint                       |        | [cfg]() &#124; [modellinks-per-step]() &#124; [log]()    |
+| R-101-D16   | 512x512    | 10-1-overlapped                     |        | [cfg]() &#124; [modellinks-per-step]() &#124; [log]()    |
+
+#### ADE20k
 
