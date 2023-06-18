@@ -10,6 +10,7 @@ import torch
 import functools
 import torch.nn.functional as F
 import torch.distributed as dist
+from apex import amp
 from tqdm import tqdm
 from .base import BaseRunner
 
@@ -23,7 +24,7 @@ class PLOPRunner(BaseRunner):
     '''preparefortrain'''
     def preparefortrain(self):
         if self.history_segmentor is not None:
-            self.thresholds, self.max_entropy = self.autocastforward(self.findmedianforpseudolabeling, {})
+            self.thresholds, self.max_entropy = self.findmedianforpseudolabeling()
     '''train'''
     def train(self, cur_epoch):
         # initialize
@@ -48,7 +49,7 @@ class PLOPRunner(BaseRunner):
             if self.history_segmentor is not None:
                 num_history_known_classes = functools.reduce(lambda a, b: a + b, self.runner_cfg['segmentor_cfg']['num_known_classes_list'][:-1])
                 with torch.no_grad():
-                    history_outputs = self.autocastforward(func=self.history_segmentor, func_args={'x': images})
+                    history_outputs = self.history_segmentor(images)
                     history_distillation_feats = history_outputs['distillation_feats']
                     history_distillation_feats.append(history_outputs['seg_logits'])
                     history_seg_logits = F.interpolate(history_outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners)
@@ -61,31 +62,34 @@ class PLOPRunner(BaseRunner):
                 classifier_adaptive_factor = (valid_pseudo_mask & background_mask).float().sum(dim=(1, 2)) / (background_mask.float().sum(dim=(1, 2)) + self.eps)
                 classifier_adaptive_factor = classifier_adaptive_factor[:, None, None]
             # --forward to segmentor
-            outputs = self.autocastforward(func=self.segmentor, func_args={'x': images})
+            outputs = self.segmentor(images)
             # --calculate segmentation losses
             seg_losses_cfgs = copy.deepcopy(losses_cfgs['segmentation_cl']) if self.history_segmentor is not None else copy.deepcopy(losses_cfgs['segmentation_init'])
             for _, seg_losses_cfg in seg_losses_cfgs.items():
                 for loss_type, loss_cfg in seg_losses_cfg.items():
                     loss_cfg.update({'scale_factor': classifier_adaptive_factor, 'reduction': 'none'})
-            seg_total_loss, seg_losses_log_dict = self.autocastforward(
-                func=self.segmentor.module.calculateseglosses, func_args={'seg_logits': outputs['seg_logits'], 'seg_targets': seg_targets_mergepseudolabels, 'losses_cfgs': seg_losses_cfgs}
+            seg_total_loss, seg_losses_log_dict = self.segmentor.module.calculateseglosses(
+                seg_logits=outputs['seg_logits'], 
+                seg_targets=seg_targets_mergepseudolabels, 
+                losses_cfgs=seg_losses_cfgs,
             )
             # --calculate distillatio losses
             pod_total_loss, pod_losses_log_dict = 0, {}
             if self.history_segmentor is not None:
                 distillation_feats = outputs['distillation_feats']
                 distillation_feats.append(outputs['seg_logits'])
-                func_args = losses_cfgs['distillation']
-                func_args.update({
-                    'history_distillation_feats': history_distillation_feats, 'distillation_feats': distillation_feats, 'num_known_classes_list': self.runner_cfg['segmentor_cfg']['num_known_classes_list'],
-                })
-                pod_total_loss, pod_losses_log_dict = self.autocastforward(func=self.featuresdistillation, func_args=func_args)
+                pod_total_loss, pod_losses_log_dict = self.featuresdistillation(
+                    history_distillation_feats=history_distillation_feats, 
+                    distillation_feats=distillation_feats,
+                    num_known_classes_list=self.runner_cfg['segmentor_cfg']['num_known_classes_list'],
+                    **losses_cfgs['distillation']
+                )
             # --merge two losses
-            with torch.autocast(device_type='cuda', dtype=torch.float16):
-                loss_total = pod_total_loss + seg_total_loss
+            loss_total = pod_total_loss + seg_total_loss
             # --perform back propagation
-            self.grad_scaler.scale(loss_total).backward()
-            self.scheduler.step(self.grad_scaler)
+            with amp.scale_loss(loss_total, self.optimizer) as scaled_loss_total:
+                scaled_loss_total.backward()
+            self.scheduler.step()
             # --set zero gradient
             self.scheduler.zerograd()
             # --logging training loss info
@@ -108,7 +112,7 @@ class PLOPRunner(BaseRunner):
         for batch_idx, data_meta in enumerate(train_loader):
             images = data_meta['image'].to(self.device, dtype=torch.float32)
             seg_targets = data_meta['seg_target'].to(self.device, dtype=torch.long)
-            seg_logits = self.autocastforward(func=self.history_segmentor, func_args={'x': images})['seg_logits']
+            seg_logits = self.history_segmentor(images)['seg_logits']
             seg_logits = F.interpolate(seg_logits, size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners)
             background_mask = (seg_targets == 0)
             seg_probs = torch.softmax(seg_logits, dim=1)

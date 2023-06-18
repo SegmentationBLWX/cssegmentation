@@ -19,6 +19,7 @@ SEGMENTOR_CFG = {
         'in_channels': 2048,
         'out_channels': 256,
         'dilations': (1, 6, 12, 18),
+        'align_corners': False,
         'norm_cfg': {'type': 'InPlaceABNSync', 'activation': 'leaky_relu', 'activation_param': 0.01},
         'act_cfg': None,
     },

@@ -6,14 +6,16 @@ Author:
 '''
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from ..encoders import BuildActivation, BuildNormalization, actname2torchactname
 
 
 '''ASPPHead'''
 class ASPPHead(nn.Module):
-    def __init__(self, in_channels, out_channels, dilations, norm_cfg=None, act_cfg=None):
+    def __init__(self, in_channels, out_channels, dilations, align_corners=False, norm_cfg=None, act_cfg=None):
         super(ASPPHead, self).__init__()
         # set attributes
+        self.align_corners = align_corners
         self.in_channels = in_channels
         self.out_channels = out_channels
         # parallel convolutions
@@ -76,7 +78,7 @@ class ASPPHead(nn.Module):
         outputs = self.bottleneck_conv(outputs)
         # feed to global branch
         global_feats = self.global_branch(x)
-        global_feats = global_feats.repeat(1, 1, x.size(2), x.size(3))
+        global_feats = F.interpolate(global_feats, size=input_size[2:], mode='bilinear', align_corners=self.align_corners)
         # shortcut
         outputs = outputs + global_feats
         outputs = self.bottleneck_bn(outputs)
