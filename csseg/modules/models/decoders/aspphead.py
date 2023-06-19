@@ -12,12 +12,12 @@ from ..encoders import BuildActivation, BuildNormalization, actname2torchactname
 
 '''ASPPHead'''
 class ASPPHead(nn.Module):
-    def __init__(self, in_channels, out_channels, dilations, align_corners=False, norm_cfg=None, act_cfg=None):
+    def __init__(self, in_channels, out_channels, dilations, pooling_size=32, norm_cfg=None, act_cfg=None):
         super(ASPPHead, self).__init__()
         # set attributes
-        self.align_corners = align_corners
         self.in_channels = in_channels
         self.out_channels = out_channels
+        self.pooling_size = (pooling_size, pooling_size) if isinstance(pooling_size, int) else pooling_size
         # parallel convolutions
         self.parallel_convs = nn.ModuleList()
         for idx, dilation in enumerate(dilations):
@@ -39,7 +39,6 @@ class ASPPHead(nn.Module):
         )
         # global branch
         self.global_branch = nn.Sequential(
-            nn.AdaptiveAvgPool2d((1, 1)),
             nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0, bias=False),
             BuildNormalization(placeholder=out_channels, norm_cfg=norm_cfg),
             BuildActivation(act_cfg=act_cfg),
@@ -56,7 +55,7 @@ class ASPPHead(nn.Module):
             self.initparams(self.bottleneck_bn[0].activation, self.bottleneck_bn[0].activation_param)
         else:
             self.initparams(actname2torchactname(act_cfg['type']), act_cfg.get('negative_slope'))
-    '''initialize parameters'''
+    '''initparams'''
     def initparams(self, nonlinearity, param=None):
         gain = nn.init.calculate_gain(nonlinearity, param)
         for module in self.modules():
@@ -77,10 +76,25 @@ class ASPPHead(nn.Module):
         outputs = self.parallel_bn(outputs)
         outputs = self.bottleneck_conv(outputs)
         # feed to global branch
-        global_feats = self.global_branch(x)
-        global_feats = F.interpolate(global_feats, size=input_size[2:], mode='bilinear', align_corners=self.align_corners)
+        global_feats = self.globalpooling(x)
+        global_feats = self.global_branch(global_feats)
+        if self.training or self.pooling_size is None:
+            global_feats = global_feats.repeat(1, 1, x.size(2), x.size(3))
         # shortcut
         outputs = outputs + global_feats
         outputs = self.bottleneck_bn(outputs)
         # return
         return outputs
+    '''globalpooling'''
+    def globalpooling(self, x):
+        if self.training or self.pooling_size is None:
+            global_feats = x.view(x.size(0), x.size(1), -1).mean(dim=-1)
+            global_feats = global_feats.view(x.size(0), x.size(1), 1, 1)
+        else:
+            padding = (
+                (self.pooling_size[1] - 1) // 2, (self.pooling_size[1] - 1) // 2 if self.pooling_size[1] % 2 == 1 else (self.pooling_size[1] - 1) // 2 + 1,
+                (self.pooling_size[0] - 1) // 2, (self.pooling_size[0] - 1) // 2 if self.pooling_size[0] % 2 == 1 else (self.pooling_size[0] - 1) // 2 + 1,
+            )
+            global_feats = F.avg_pool2d(x, self.pooling_size, stride=1)
+            global_feats = F.pad(global_feats, pad=padding, mode='replicate')
+        return global_feats
