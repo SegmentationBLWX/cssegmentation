@@ -1,19 +1,19 @@
 ## Introduction
 
-<a href="https://github.com/arthurdouillard/CVPR2021_PLOP">Official Repo</a>
+<a href="https://github.com/ygjwd12345/UCD/">Official Repo</a>
 
-<a href="https://github.com/SegmentationBLWX/cssegmentation/blob/main/csseg/modules/runners/plop.py">Code Snippet</a>
+<a href="https://github.com/SegmentationBLWX/cssegmentation/blob/main/csseg/modules/runners/ucd.py">Code Snippet</a>
 
 <details>
-<summary align="left"><a href="https://arxiv.org/pdf/2011.11390.pdf">PLOP (CVPR'2021)</a></summary>
+<summary align="left"><a href="https://arxiv.org/pdf/2203.14098.pdf">UCD (TPAMI'2022)</a></summary>
 
 ```latex
-@inproceedings{douillard2021plop,
-  title={Plop: Learning without forgetting for continual semantic segmentation},
-  author={Douillard, Arthur and Chen, Yifu and Dapogny, Arnaud and Cord, Matthieu},
-  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
-  pages={4040--4050},
-  year={2021}
+@article{yang2022uncertainty,
+  title={Uncertainty-aware contrastive distillation for incremental semantic segmentation},
+  author={Yang, Guanglei and Fini, Enrico and Xu, Dan and Rota, Paolo and Ding, Mingli and Nabi, Moin and Alameda-Pineda, Xavier and Ricci, Elisa},
+  journal={IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  year={2022},
+  publisher={IEEE}
 }
 ```
 

@@ -56,6 +56,7 @@ You can star this repository to keep track of the project if it's helpful for yo
 | Runner                 | Model Zoo                                                   | Paper Link                                                    | Code Snippet                                             |
 | :-:                    | :-:                                                         | :-:                                                           | :-:                                                      |
 | MIB                    | [click](./docs/modelzoo/mib)                                | [CVPR 2020](https://arxiv.org/pdf/2002.00718.pdf)             | [click](./csseg/modules/runners/mib.py)                  |
+| UCD                    | [click](./docs/modelzoo/ucd)                                | [TPAMI 2022](https://arxiv.org/pdf/2203.14098.pdf)            | [click](./csseg/modules/runners/ucd.py)                  |
 | PLOP                   | [click](./docs/modelzoo/plop)                               | [CVPR 2021](https://arxiv.org/pdf/2011.11390.pdf)             | [click](./csseg/modules/runners/plop.py)                 |
 | RCIL                   | [click](./docs/modelzoo/rcil)                               | [CVPR 2022](https://arxiv.org/pdf/2203.05402.pdf)             | [click](./csseg/modules/runners/rcil.py)                 |
 

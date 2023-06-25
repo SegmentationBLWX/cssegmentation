@@ -1,19 +1,19 @@
 ## Introduction
 
-<a href="https://github.com/arthurdouillard/CVPR2021_PLOP">Official Repo</a>
+<a href="https://github.com/zhangchbin/RCIL/">Official Repo</a>
 
-<a href="https://github.com/SegmentationBLWX/cssegmentation/blob/main/csseg/modules/runners/plop.py">Code Snippet</a>
+<a href="https://github.com/SegmentationBLWX/cssegmentation/blob/main/csseg/modules/runners/rcil.py">Code Snippet</a>
 
 <details>
-<summary align="left"><a href="https://arxiv.org/pdf/2011.11390.pdf">PLOP (CVPR'2021)</a></summary>
+<summary align="left"><a href="https://arxiv.org/pdf/2203.05402.pdf">RCIL (CVPR'2022)</a></summary>
 
 ```latex
-@inproceedings{douillard2021plop,
-  title={Plop: Learning without forgetting for continual semantic segmentation},
-  author={Douillard, Arthur and Chen, Yifu and Dapogny, Arnaud and Cord, Matthieu},
+@inproceedings{zhang2022representation,
+  title={Representation compensation networks for continual semantic segmentation},
+  author={Zhang, Chang-Bin and Xiao, Jia-Wen and Liu, Xialei and Chen, Ying-Cong and Cheng, Ming-Ming},
   booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
-  pages={4040--4050},
-  year={2021}
+  pages={7053--7064},
+  year={2022}
 }
 ```
 
