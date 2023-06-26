@@ -43,3 +43,9 @@
 | R-101-D16  | 512x512    | 100-10-overlapped                   |        | [cfg](https://raw.githubusercontent.com/SegmentationBLWX/cssegmentation/main/csseg/configs/plop/plop_r101iabnd16_aspp_512x512_ade20k100-10_overlap.py) &#124; [modellinks-per-step](https://github.com/SegmentationBLWX/modelstore/releases/tag/csseg_plop) &#124; [log](https://github.com/SegmentationBLWX/modelstore/releases/download/csseg_plop/plop_r101iabnd16_aspp_512x512_ade20k100-10_overlap.log)    |
 | R-101-D16  | 512x512    | 100-5-disjoint                      |        | [cfg](https://raw.githubusercontent.com/SegmentationBLWX/cssegmentation/main/csseg/configs/plop/plop_r101iabnd16_aspp_512x512_ade20k100-5_disjoint.py) &#124; [modellinks-per-step](https://github.com/SegmentationBLWX/modelstore/releases/tag/csseg_plop) &#124; [log](https://github.com/SegmentationBLWX/modelstore/releases/download/csseg_plop/plop_r101iabnd16_aspp_512x512_ade20k100-5_disjoint.log)    |
 | R-101-D16  | 512x512    | 100-5-overlapped                    |        | [cfg](https://raw.githubusercontent.com/SegmentationBLWX/cssegmentation/main/csseg/configs/plop/plop_r101iabnd16_aspp_512x512_ade20k100-5_overlap.py) &#124; [modellinks-per-step](https://github.com/SegmentationBLWX/modelstore/releases/tag/csseg_plop) &#124; [log](https://github.com/SegmentationBLWX/modelstore/releases/download/csseg_plop/plop_r101iabnd16_aspp_512x512_ade20k100-5_overlap.log)      |
+
+
+## More
+
+You can also download the model weights from following sources:
+- BaiduNetdisk: https://pan.baidu.com/s/1e9LlD6ITuLECstFcVPaCxQ with access code **55mq**

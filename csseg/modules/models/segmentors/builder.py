@@ -5,6 +5,7 @@ Author:
     Zhenchao Jin
 '''
 import copy
+from .ilt import ILTSegmentor
 from .mib import MIBSegmentor
 from .base import BaseSegmentor
 from .plop import PLOPSegmentor
@@ -15,9 +16,7 @@ def BuildSegmentor(segmentor_cfg):
     segmentor_cfg = copy.deepcopy(segmentor_cfg)
     # supported segmentors
     supported_segmentors = {
-        'MIBSegmentor': MIBSegmentor,
-        'BaseSegmentor': BaseSegmentor,
-        'PLOPSegmentor': PLOPSegmentor,
+        'MIBSegmentor': MIBSegmentor, 'ILTSegmentor': ILTSegmentor, 'BaseSegmentor': BaseSegmentor, 'PLOPSegmentor': PLOPSegmentor,
     }
     # parse
     segmentor_type = segmentor_cfg.pop('type')

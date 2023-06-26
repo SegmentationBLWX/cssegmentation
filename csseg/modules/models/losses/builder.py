@@ -5,6 +5,7 @@ Author:
     Zhenchao Jin
 '''
 import copy
+from .mseloss import MSELoss
 from .klloss import KLDivLoss
 from .csloss import CosineSimilarityLoss
 from .celoss import CrossEntropyLoss, MIBUnbiasedCrossEntropyLoss
@@ -15,9 +16,7 @@ def BuildLoss(loss_cfg):
     loss_cfg = copy.deepcopy(loss_cfg)
     # supported loss functions
     supported_lossfuncs = {
-        'KLDivLoss': KLDivLoss,
-        'CrossEntropyLoss': CrossEntropyLoss,
-        'CosineSimilarityLoss': CosineSimilarityLoss,
+        'MSELoss': MSELoss, 'KLDivLoss': KLDivLoss, 'CrossEntropyLoss': CrossEntropyLoss, 'CosineSimilarityLoss': CosineSimilarityLoss,
         'MIBUnbiasedCrossEntropyLoss': MIBUnbiasedCrossEntropyLoss,
     }
     # parse

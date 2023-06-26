@@ -73,7 +73,7 @@ class PLOPRunner(BaseRunner):
                 seg_targets=seg_targets_mergepseudolabels, 
                 losses_cfgs=seg_losses_cfgs,
             )
-            # --calculate distillatio losses
+            # --calculate distillation losses
             pod_total_loss, pod_losses_log_dict = 0, {}
             if self.history_segmentor is not None:
                 distillation_feats = outputs['distillation_feats']

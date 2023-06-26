@@ -1,19 +1,19 @@
 ## Introduction
 
-<a href="https://github.com/fcdl94/MiB">Official Repo</a>
+<a href="https://github.com/LTTM/IL-SemSegm">Official Repo</a>
 
-<a href="https://github.com/SegmentationBLWX/cssegmentation/blob/main/csseg/modules/runners/mib.py">Code Snippet</a>
+<a href="https://github.com/SegmentationBLWX/cssegmentation/blob/main/csseg/modules/runners/ilt.py">Code Snippet</a>
 
 <details>
-<summary align="left"><a href="https://arxiv.org/pdf/2002.00718.pdf">MiB (CVPR'2020)</a></summary>
+<summary align="left"><a href="https://arxiv.org/pdf/1907.13372.pdf">ILT (ICCVW'2019)</a></summary>
 
 ```latex
-@inproceedings{cermelli2020modeling,
-  title={Modeling the background for incremental learning in semantic segmentation},
-  author={Cermelli, Fabio and Mancini, Massimiliano and Bulo, Samuel Rota and Ricci, Elisa and Caputo, Barbara},
-  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
-  pages={9233--9242},
-  year={2020}
+@inproceedings{michieli2019incremental,
+  title={Incremental learning techniques for semantic segmentation},
+  author={Michieli, Umberto and Zanuttigh, Pietro},
+  booktitle={Proceedings of the IEEE/CVF international conference on computer vision workshops},
+  pages={0--0},
+  year={2019}
 }
 ```
 
