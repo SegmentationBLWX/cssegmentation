@@ -1,4 +1,4 @@
-'''mib_r101iabnd16_aspp_512x512_vocaug15-5_overlap'''
+'''mib+ucd_r101iabnd16_aspp_512x512_vocaug15-5_overlap'''
 import os
 from .base_cfg import RUNNER_CFG
 from .._base_ import DATASET_CFG_VOCAUG_512x512, OPTIMIZER_CFG_SGD, SCHEDULER_CFG_POLY, DATALOADER_CFG_BS24, PARALLEL_CFG

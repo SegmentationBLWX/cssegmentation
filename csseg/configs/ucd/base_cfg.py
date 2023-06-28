@@ -1,12 +1,12 @@
-'''BASE_CFG for MIB'''
+'''BASE_CFG for UCD'''
 # SEGMENTOR_CFG
 SEGMENTOR_CFG = {
-    'type': 'MIBSegmentor',
+    'type': 'UCDSegmentor',
     'num_known_classes_list': None,
     'selected_indices': (0,), 
     'align_corners': False, 
     'encoder_cfg': {
-        'type': 'ResNetMIB',
+        'type': 'ResNetUCD',
         'depth': 101,
         'outstride': 16,
         'out_indices': (3,),
@@ -15,7 +15,7 @@ SEGMENTOR_CFG = {
         'pretrained': True,
     }, 
     'decoder_cfg': {
-        'type': 'NaiveASPPHead',
+        'type': 'ASPPHead',
         'in_channels': 2048,
         'out_channels': 256,
         'dilations': (1, 6, 12, 18),
@@ -30,13 +30,14 @@ SEGMENTOR_CFG = {
         'segmentation_cl' : {
             'loss_seg': {'MIBUnbiasedCrossEntropyLoss': {'scale_factor': 1.0, 'reduction': 'mean', 'ignore_index': 255}}
         },
-        'distillation': {'scale_factor': 100, 'alpha': 1.0},
+        'distillation': {'scale_factor': 10, 'alpha': 1.0},
+        'contrastive': {'scale_factor': 0.01, 'reduction': 'mean'},
     },
 }
 # RUNNER_CFG
 RUNNER_CFG = {
-    'type': 'MIBRunner',
-    'algorithm': 'MIB',
+    'type': 'UCDMIBRunner',
+    'algorithm': 'UCD',
     'task_name': '',
     'task_id': -1,
     'num_tasks': -1,

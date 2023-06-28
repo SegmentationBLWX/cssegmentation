@@ -5,9 +5,11 @@ Author:
     Zhenchao Jin
 '''
 import copy
+from .ilt import ILTRunner
 from .mib import MIBRunner
 from .plop import PLOPRunner
 from .rcil import RCILRunner
+from .ucd import UCDMIBRunner
 
 
 '''BuildRunner'''
@@ -15,8 +17,7 @@ def BuildRunner(mode, cmd_args, runner_cfg):
     runner_cfg = copy.deepcopy(runner_cfg)
     # supported runners
     supported_runners = {
-        'MIBRunner': MIBRunner,
-        'PLOPRunner': PLOPRunner,
+        'UCDMIBRunner': UCDMIBRunner, 'ILTRunner': ILTRunner, 'MIBRunner': MIBRunner, 'PLOPRunner': PLOPRunner,
         'RCILRunner': RCILRunner,
     }
     # parse
