@@ -47,7 +47,7 @@ class UCDMIBRunner(MIBRunner):
                 num_history_known_classes = functools.reduce(lambda a, b: a + b, self.runner_cfg['segmentor_cfg']['num_known_classes_list'][:-1])
                 for _, seg_losses_cfg in seg_losses_cfgs.items():
                     for loss_type, loss_cfg in seg_losses_cfg.items():
-                        loss_cfg.update({'num_history_known_classes': num_history_known_classes, 'reduction': 'none'})
+                        loss_cfg.update({'num_history_known_classes': num_history_known_classes})
             seg_total_loss, seg_losses_log_dict = self.segmentor.module.calculateseglosses(
                 seg_logits=outputs['seg_logits'], 
                 seg_targets=seg_targets, 
@@ -146,10 +146,10 @@ class UCDMIBRunner(MIBRunner):
         )
         JM_p = torch.mm(history_seg_probs_anchor, history_seg_probs_contrast.T)
         # mask old classes on anchor_labels
-        mask_anchor_labels = torch.zeros_like(anchor_labels)
+        mask_anchor_labels = torch.zeros_like(anchor_labels).to(anchor_labels.dtype).to(anchor_labels.device)
         mask_anchor_labels[mask_anchor_labels >= current_classes_minclsid] = 1
         # mask old classes on contrast_labels
-        mask_contrast_labels = torch.zeros_like(contrast_labels)
+        mask_contrast_labels = torch.zeros_like(contrast_labels).to(contrast_labels.dtype).to(contrast_labels.device)
         mask_contrast_labels[mask_contrast_labels >= current_classes_minclsid] = 1
         # fix gt with gt cases
         M_gt = torch.mm(mask_anchor_labels.unsqueeze(dim=1), mask_contrast_labels.unsqueeze(dim=1).T)

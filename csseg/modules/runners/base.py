@@ -27,7 +27,7 @@ class BaseRunner():
         self.mode = mode
         self.best_score = 0
         self.cmd_args = cmd_args
-        self.runner_cfg = runner_cfg
+        self.runner_cfg = copy.deepcopy(runner_cfg)
         self.losses_cfgs = runner_cfg['segmentor_cfg'].pop('losses_cfgs')
         self.device = torch.device(cmd_args.local_rank)
         self.root_work_dir = runner_cfg['work_dir']

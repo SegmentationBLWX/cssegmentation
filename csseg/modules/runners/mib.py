@@ -47,7 +47,7 @@ class MIBRunner(BaseRunner):
                 num_history_known_classes = functools.reduce(lambda a, b: a + b, self.runner_cfg['segmentor_cfg']['num_known_classes_list'][:-1])
                 for _, seg_losses_cfg in seg_losses_cfgs.items():
                     for loss_type, loss_cfg in seg_losses_cfg.items():
-                        loss_cfg.update({'num_history_known_classes': num_history_known_classes, 'reduction': 'none'})
+                        loss_cfg.update({'num_history_known_classes': num_history_known_classes})
             seg_total_loss, seg_losses_log_dict = self.segmentor.module.calculateseglosses(
                 seg_logits=outputs['seg_logits'], 
                 seg_targets=seg_targets, 

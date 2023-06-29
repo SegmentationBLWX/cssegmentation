@@ -149,7 +149,7 @@ class PLOPRunner(BaseRunner):
         return -factor * torch.mean(probabilities * torch.log(probabilities + eps), dim=1)
     '''featuresdistillation'''
     @staticmethod
-    def featuresdistillation(history_distillation_feats, distillation_feats, pod_factor=0.01, pod_factor_last_scale=0.0005, spp_scales=[1, 2, 4], num_known_classes_list=None):
+    def featuresdistillation(history_distillation_feats, distillation_feats, pod_factor=0.01, pod_factor_last_scale=0.0005, spp_scales=[1, 2, 4], num_known_classes_list=None, scale_factor=1.0):
         # assert and initialize
         assert len(history_distillation_feats) == len(distillation_feats)
         device = history_distillation_feats[0].device
@@ -178,7 +178,8 @@ class PLOPRunner(BaseRunner):
             layer_loss = pod_factor * layer_loss
             layer_loss = layer_loss * math.sqrt(num_known_classes / num_curtask_classes)
             loss += layer_loss
-        pod_total_loss = loss / len(history_distillation_feats)
+        # summarize and return
+        pod_total_loss = loss / len(history_distillation_feats) * scale_factor
         value = pod_total_loss.data.clone()
         dist.all_reduce(value.div_(dist.get_world_size()))
         pod_losses_log_dict = {'loss_pod': value.item()}

@@ -44,11 +44,6 @@ class ILTRunner(BaseRunner):
             outputs = self.segmentor(images)
             # --calculate segmentation losses
             seg_losses_cfgs = copy.deepcopy(losses_cfgs['segmentation_cl']) if self.history_segmentor is not None else copy.deepcopy(losses_cfgs['segmentation_init'])
-            if self.history_segmentor is not None:
-                num_history_known_classes = functools.reduce(lambda a, b: a + b, self.runner_cfg['segmentor_cfg']['num_known_classes_list'][:-1])
-                for _, seg_losses_cfg in seg_losses_cfgs.items():
-                    for loss_type, loss_cfg in seg_losses_cfg.items():
-                        loss_cfg.update({'num_history_known_classes': num_history_known_classes, 'reduction': 'none'})
             seg_total_loss, seg_losses_log_dict = self.segmentor.module.calculateseglosses(
                 seg_logits=outputs['seg_logits'], 
                 seg_targets=seg_targets, 
