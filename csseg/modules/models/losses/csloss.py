@@ -16,6 +16,7 @@ class CosineSimilarityLoss(nn.Module):
         self.reduction = reduction
         self.scale_factor = scale_factor
     '''forward'''
+    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def forward(self, prediction, target):
         # assert
         assert prediction.size() == target.size()

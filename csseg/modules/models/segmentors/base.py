@@ -33,6 +33,7 @@ class BaseSegmentor(nn.Module):
             nn.Conv2d(self.decoder.out_channels, num_classes, kernel_size=1, stride=1, padding=0) for num_classes in num_known_classes_list
         ])
     '''forward'''
+    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def forward(self, x):
         img_size = x.shape[2:]
         # feed to encoder
@@ -49,6 +50,7 @@ class BaseSegmentor(nn.Module):
         # return
         return outputs
     '''calculatesegloss'''
+    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def calculatesegloss(self, seg_logits, seg_targets, losses_cfg):
         loss = 0
         for loss_type, loss_cfg in losses_cfg.items():
@@ -57,6 +59,7 @@ class BaseSegmentor(nn.Module):
             loss += BuildLoss(loss_cfg)(prediction=seg_logits, target=seg_targets)
         return loss.mean()
     '''calculateseglosses'''
+    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def calculateseglosses(self, seg_logits, seg_targets, losses_cfgs):
         # interpolate seg_logits
         if seg_logits.shape[-2:] != seg_targets.shape[-2:]:
@@ -77,6 +80,7 @@ class BaseSegmentor(nn.Module):
         # return
         return loss_total, losses_log_dict
     '''transforminputs'''
+    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def transforminputs(self, inputs, selected_indices):
         if isinstance(selected_indices, numbers.Number):
             selected_indices = [selected_indices]
@@ -85,8 +89,6 @@ class BaseSegmentor(nn.Module):
     '''architectures'''
     def architectures(self):
         architectures = {
-            'encoder': self.encoder,
-            'decoder': self.decoder,
-            'convs_cls': self.convs_cls,
+            'encoder': self.encoder, 'decoder': self.decoder, 'convs_cls': self.convs_cls,
         }
         return architectures

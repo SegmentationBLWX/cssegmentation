@@ -9,7 +9,6 @@ import torch
 import functools
 import torch.nn.functional as F
 import torch.distributed as dist
-from apex import amp
 from .base import BaseRunner
 
 
@@ -70,9 +69,8 @@ class RCILRunner(BaseRunner):
             # --merge two losses
             loss_total = pod_total_loss + seg_total_loss
             # --perform back propagation
-            with amp.scale_loss(loss_total, self.optimizer) as scaled_loss_total:
-                scaled_loss_total.backward()
-            self.scheduler.step()
+            self.grad_scaler.scale(loss_total).backward()
+            self.scheduler.step(self.grad_scaler)
             # --set zero gradient
             self.scheduler.zerograd()
             # --logging training loss info
@@ -81,6 +79,7 @@ class RCILRunner(BaseRunner):
             seg_losses_log_dict['loss_total'] = loss_total.item()
             losses_log_dict = self.loggingtraininginfo(seg_losses_log_dict, losses_log_dict, init_losses_log_dict)
     '''featuresdistillation'''
+    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def featuresdistillation(self, history_distillation_feats, distillation_feats, num_known_classes_list=None, dataset_type='VOCDataset', scale_factor=1.0, spp_scales=[4, 8, 12, 16, 20, 24]):
         pod_total_loss = self.featuresdistillationchannel(history_distillation_feats, distillation_feats, num_known_classes_list, dataset_type) + \
             self.featuresdistillationspatial(history_distillation_feats, distillation_feats, num_known_classes_list, dataset_type, spp_scales)
@@ -91,6 +90,7 @@ class RCILRunner(BaseRunner):
         return pod_total_loss, pod_losses_log_dict
     '''featuresdistillationchannel'''
     @staticmethod
+    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def featuresdistillationchannel(history_distillation_feats, distillation_feats, num_known_classes_list=None, dataset_type='VOCDataset'):
         # assert and initialize
         assert len(history_distillation_feats) == len(distillation_feats)
@@ -128,6 +128,7 @@ class RCILRunner(BaseRunner):
         return loss
     '''featuresdistillationspatial'''
     @staticmethod
+    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def featuresdistillationspatial(history_distillation_feats, distillation_feats, num_known_classes_list=None, dataset_type='VOCDataset', spp_scales=[4, 8, 12, 16, 20, 24]):
         # assert and initialize
         assert len(history_distillation_feats) == len(distillation_feats)

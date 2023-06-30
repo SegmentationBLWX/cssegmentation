@@ -10,7 +10,6 @@ import torch
 import functools
 import torch.nn.functional as F
 import torch.distributed as dist
-from apex import amp
 from tqdm import tqdm
 from .base import BaseRunner
 
@@ -22,6 +21,7 @@ class PLOPRunner(BaseRunner):
             mode=mode, cmd_args=cmd_args, runner_cfg=runner_cfg
         )
     '''preparefortrain'''
+    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def preparefortrain(self):
         if self.history_segmentor is not None:
             self.thresholds, self.max_entropy = self.findmedianforpseudolabeling()
@@ -87,9 +87,8 @@ class PLOPRunner(BaseRunner):
             # --merge two losses
             loss_total = pod_total_loss + seg_total_loss
             # --perform back propagation
-            with amp.scale_loss(loss_total, self.optimizer) as scaled_loss_total:
-                scaled_loss_total.backward()
-            self.scheduler.step()
+            self.grad_scaler.scale(loss_total).backward()
+            self.scheduler.step(self.grad_scaler)
             # --set zero gradient
             self.scheduler.zerograd()
             # --logging training loss info
@@ -98,6 +97,7 @@ class PLOPRunner(BaseRunner):
             seg_losses_log_dict['loss_total'] = loss_total.item()
             losses_log_dict = self.loggingtraininginfo(seg_losses_log_dict, losses_log_dict, init_losses_log_dict)
     '''findmedianforpseudolabeling'''
+    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def findmedianforpseudolabeling(self):
         # initialize
         num_known_classes = functools.reduce(lambda a, b: a + b, self.runner_cfg['segmentor_cfg']['num_known_classes_list'])
@@ -144,11 +144,13 @@ class PLOPRunner(BaseRunner):
         return thresholds.to(self.device), max_value
     '''entropy'''
     @staticmethod
+    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def entropy(probabilities, eps=1e-8):
         factor = 1 / math.log(probabilities.shape[1] + eps)
         return -factor * torch.mean(probabilities * torch.log(probabilities + eps), dim=1)
     '''featuresdistillation'''
     @staticmethod
+    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def featuresdistillation(history_distillation_feats, distillation_feats, pod_factor=0.01, pod_factor_last_scale=0.0005, spp_scales=[1, 2, 4], num_known_classes_list=None, scale_factor=1.0):
         # assert and initialize
         assert len(history_distillation_feats) == len(distillation_feats)
@@ -186,6 +188,7 @@ class PLOPRunner(BaseRunner):
         return pod_total_loss, pod_losses_log_dict
     '''localpod'''
     @staticmethod
+    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def localpod(x, spp_scales=[1, 2, 4]):
         batch_size, num_channels, height, width = x.shape
         embeddings = []

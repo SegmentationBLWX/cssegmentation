@@ -9,7 +9,6 @@ import torch
 import functools
 import torch.nn.functional as F
 import torch.distributed as dist
-from apex import amp
 from .base import BaseRunner
 from ..models import BuildLoss
 
@@ -65,9 +64,8 @@ class ILTRunner(BaseRunner):
             # --merge two losses
             loss_total = kd_total_loss + seg_total_loss
             # --perform back propagation
-            with amp.scale_loss(loss_total, self.optimizer) as scaled_loss_total:
-                scaled_loss_total.backward()
-            self.scheduler.step()
+            self.grad_scaler.scale(loss_total).backward()
+            self.scheduler.step(self.grad_scaler)
             # --set zero gradient
             self.scheduler.zerograd()
             # --logging training loss info
@@ -77,6 +75,7 @@ class ILTRunner(BaseRunner):
             losses_log_dict = self.loggingtraininginfo(seg_losses_log_dict, losses_log_dict, init_losses_log_dict)
     '''featuresdistillation'''
     @staticmethod
+    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def featuresdistillation(history_distillation_feats, distillation_feats, reduction='mean', alpha=1., scale_factor=100):
         distillation_feats = distillation_feats.narrow(1, 0, history_distillation_feats.shape[1])
         outputs = torch.log_softmax(distillation_feats, dim=1)

@@ -7,9 +7,12 @@ Author:
 import copy
 from .ilt import ILTRunner
 from .mib import MIBRunner
+from .caf import CAFRunner
+from .sdr import SDRRunner
 from .plop import PLOPRunner
 from .rcil import RCILRunner
 from .ucd import UCDMIBRunner
+from .reminder import REMINDERRunner
 
 
 '''BuildRunner'''
@@ -18,7 +21,7 @@ def BuildRunner(mode, cmd_args, runner_cfg):
     # supported runners
     supported_runners = {
         'UCDMIBRunner': UCDMIBRunner, 'ILTRunner': ILTRunner, 'MIBRunner': MIBRunner, 'PLOPRunner': PLOPRunner,
-        'RCILRunner': RCILRunner,
+        'RCILRunner': RCILRunner, 'REMINDERRunner': REMINDERRunner, 'CAFRunner': CAFRunner, 'SDRRunner': SDRRunner,
     }
     # parse
     runner_type = runner_cfg.pop('type')
