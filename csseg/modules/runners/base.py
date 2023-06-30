@@ -27,8 +27,8 @@ class BaseRunner():
         self.mode = mode
         self.best_score = 0
         self.cmd_args = cmd_args
-        self.runner_cfg = copy.deepcopy(runner_cfg)
-        self.losses_cfgs = runner_cfg['segmentor_cfg'].pop('losses_cfgs')
+        self.runner_cfg = runner_cfg
+        self.losses_cfgs = runner_cfg['segmentor_cfg']['losses_cfgs']
         self.device = torch.device(cmd_args.local_rank)
         self.root_work_dir = runner_cfg['work_dir']
         self.task_work_dir = os.path.join(runner_cfg['work_dir'], f'task_{runner_cfg["task_id"]}')
@@ -57,11 +57,12 @@ class BaseRunner():
         self.train_loader = BuildDistributedDataloader(dataset=train_set, dataloader_cfg=dataloader_cfg) if mode == 'TRAIN' else None
         self.test_loader = BuildDistributedDataloader(dataset=test_set, dataloader_cfg=dataloader_cfg)
         # build segmentor
-        segmentor_cfg = runner_cfg['segmentor_cfg']
         if train_set is None:
-            segmentor_cfg['num_known_classes_list'] = test_set.getnumclassespertask(runner_cfg['task_name'], test_set.tasks, runner_cfg['task_id'])
+            runner_cfg['segmentor_cfg']['num_known_classes_list'] = test_set.getnumclassespertask(runner_cfg['task_name'], test_set.tasks, runner_cfg['task_id'])
         else:
-            segmentor_cfg['num_known_classes_list'] = train_set.getnumclassespertask(runner_cfg['task_name'], train_set.tasks, runner_cfg['task_id'])
+            runner_cfg['segmentor_cfg']['num_known_classes_list'] = train_set.getnumclassespertask(runner_cfg['task_name'], train_set.tasks, runner_cfg['task_id'])
+        segmentor_cfg = copy.deepcopy(runner_cfg['segmentor_cfg'])
+        segmentor_cfg.pop('losses_cfgs')
         self.segmentor = BuildSegmentor(segmentor_cfg=segmentor_cfg)
         if runner_cfg['task_id'] > 0 and mode == 'TRAIN':
             history_segmentor_cfg = copy.deepcopy(segmentor_cfg)
