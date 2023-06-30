@@ -4,6 +4,7 @@ Function:
 Author:
     Zhenchao Jin
 '''
+import torch
 from .mib import MIBSegmentor
 
 
