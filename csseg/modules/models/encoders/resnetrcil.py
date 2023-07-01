@@ -21,7 +21,6 @@ class BasicBlockRCIL(BasicBlock):
         self.conv2_branch2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn2_branch2 = BuildNormalization(placeholder=planes, norm_cfg=shortcut_norm_cfg)
     '''forward'''
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def forward(self, x):
         identity = x
         out = self.conv1(x)
@@ -60,7 +59,6 @@ class BottleneckRCIL(Bottleneck):
         self.conv2_branch2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride, padding=dilation, dilation=dilation, bias=False)
         self.bn2_branch2 = BuildNormalization(placeholder=planes, norm_cfg=norm_cfg)
     '''forward'''
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def forward(self, x):
         if isinstance(x, tuple): x = x[0]
         identity = x
@@ -105,7 +103,6 @@ class ResNetRCIL(ResNet):
             use_inplaceabn_style=use_inplaceabn_style,
         )
     '''forward'''
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def forward(self, x):
         outs, distillation_feats = [], []
         if self.deep_stem:

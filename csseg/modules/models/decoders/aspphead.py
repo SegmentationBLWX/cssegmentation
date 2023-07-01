@@ -70,7 +70,6 @@ class ASPPHead(nn.Module):
                 if hasattr(module, 'bias') and module.bias is not None:
                     nn.init.constant_(m.bias, 0)
     '''forward'''
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def forward(self, x):
         input_size = x.shape
         # feed to parallel convolutions
@@ -88,7 +87,6 @@ class ASPPHead(nn.Module):
         # return
         return outputs
     '''globalpooling'''
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def globalpooling(self, x):
         if self.training or self.pooling_size is None:
             global_feats = x.view(x.size(0), x.size(1), -1).mean(dim=-1)

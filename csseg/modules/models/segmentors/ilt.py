@@ -16,7 +16,6 @@ class ILTSegmentor(MIBSegmentor):
             align_corners=align_corners, encoder_cfg=encoder_cfg, decoder_cfg=decoder_cfg,
         )
     '''forward'''
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def forward(self, x):
         img_size = x.shape[2:]
         # feed to encoder

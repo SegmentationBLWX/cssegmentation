@@ -9,6 +9,7 @@ import torch
 import functools
 import torch.nn.functional as F
 import torch.distributed as dist
+from apex import amp
 from .mib import MIBRunner
 
 
@@ -72,8 +73,9 @@ class UCDMIBRunner(MIBRunner):
             # --merge three losses
             loss_total = kd_total_loss + cl_total_loss + seg_total_loss
             # --perform back propagation
-            self.grad_scaler.scale(loss_total).backward()
-            self.scheduler.step(self.grad_scaler)
+            with amp.scale_loss(loss_total, self.optimizer) as scaled_loss_total:
+                scaled_loss_total.backward()
+            self.scheduler.step()
             # --set zero gradient
             self.scheduler.zerograd()
             # --logging training loss info
@@ -84,7 +86,6 @@ class UCDMIBRunner(MIBRunner):
             losses_log_dict = self.loggingtraininginfo(seg_losses_log_dict, losses_log_dict, init_losses_log_dict)
     '''contrastivelearning'''
     @staticmethod
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def contrastivelearning(anchor_features, contrast_features, anchor_labels, contrast_labels, P=None, temperature=0.07, scale_factor=1.0, reduction='mean'):
         device = anchor_features.device
         anchor_labels = anchor_labels.view(-1, 1)
@@ -117,7 +118,6 @@ class UCDMIBRunner(MIBRunner):
         return loss, cl_losses_log_dict
     '''preprocessforcontrastivelearning'''
     @staticmethod
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def preprocessforcontrastivelearning(decoder_outputs, seg_targets, history_seg_logits, history_decoder_outputs, ignore_index=255):
         assert decoder_outputs.shape[2:] == history_decoder_outputs.shape[2:] and decoder_outputs.shape[2:] == history_seg_logits.shape[2:]
         # re-arrange

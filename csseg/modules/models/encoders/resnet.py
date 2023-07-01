@@ -46,7 +46,6 @@ class BasicBlock(nn.Module):
         self.dilation = dilation
         self.out_channels = planes
     '''forward'''
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def forward(self, x):
         identity = x
         out = self.conv1(x)
@@ -80,7 +79,6 @@ class Bottleneck(nn.Module):
         self.dilation = dilation
         self.out_channels = planes * self.expansion
     '''forward'''
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def forward(self, x):
         identity = x
         out = self.conv1(x)
@@ -284,7 +282,6 @@ class ResNet(nn.Module):
                 converted_state_dict[converted_key] = state_dict.pop(key)
         return converted_state_dict
     '''forward'''
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def forward(self, x):
         if self.deep_stem:
             x = self.stem(x)

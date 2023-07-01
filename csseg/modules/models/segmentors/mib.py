@@ -16,7 +16,6 @@ class MIBSegmentor(BaseSegmentor):
             align_corners=align_corners, encoder_cfg=encoder_cfg, decoder_cfg=decoder_cfg,
         )
     '''forward'''
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def forward(self, x):
         img_size = x.shape[2:]
         # feed to encoder
@@ -33,7 +32,6 @@ class MIBSegmentor(BaseSegmentor):
         # return
         return outputs
     '''initaddedclassifier'''
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def initaddedclassifier(self, device=None):
         conv_cls = self.convs_cls[-1]
         imprinting_w = self.convs_cls[0].weight[0]

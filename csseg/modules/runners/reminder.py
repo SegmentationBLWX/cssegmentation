@@ -9,6 +9,7 @@ import torch
 import functools
 import torch.nn.functional as F
 import torch.distributed as dist
+from apex import amp
 from .base import BaseRunner
 
 

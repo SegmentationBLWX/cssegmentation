@@ -17,7 +17,6 @@ class BasicBlockPLOP(BasicBlock):
             norm_cfg=norm_cfg, act_cfg=act_cfg, shortcut_norm_cfg=shortcut_norm_cfg, shortcut_act_cfg=shortcut_act_cfg,
         )
     '''forward'''
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def forward(self, x):
         identity = x
         out = self.conv1(x)
@@ -41,7 +40,6 @@ class BottleneckPLOP(Bottleneck):
             norm_cfg=norm_cfg, act_cfg=act_cfg, shortcut_norm_cfg=shortcut_norm_cfg, shortcut_act_cfg=shortcut_act_cfg,
         )
     '''forward'''
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def forward(self, x):
         if isinstance(x, tuple): x = x[0]
         identity = x
@@ -74,7 +72,6 @@ class ResNetPLOP(ResNet):
             use_inplaceabn_style=use_inplaceabn_style,
         )
     '''forward'''
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def forward(self, x):
         outs, distillation_feats = [], []
         if self.deep_stem:
