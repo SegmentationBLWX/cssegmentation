@@ -96,6 +96,8 @@ class BaseRunner():
             self.segmentor.load_state_dict(ckpts['segmentor'], strict=False)
             if hasattr(self.segmentor.module, 'initaddedclassifier'):
                 self.segmentor.module.initaddedclassifier(device=self.device)
+            if hasattr(self, 'convertsegmentor'):
+                self.convertsegmentor(self.segmentor)
             self.history_segmentor.load_state_dict(ckpts['segmentor'], strict=True)
             for param in self.history_segmentor.parameters():
                 param.requires_grad = False

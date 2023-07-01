@@ -17,9 +17,10 @@ SEGMENTOR_CFG = {
     'decoder_cfg': {
         'type': 'ASPPHead',
         'in_channels': 2048,
+        'feats_channels': 256,
         'out_channels': 256,
         'dilations': (1, 6, 12, 18),
-        'align_corners': False,
+        'pooling_size': 32,
         'norm_cfg': {'type': 'InPlaceABNSync', 'activation': 'leaky_relu', 'activation_param': 0.01},
         'act_cfg': None,
     },

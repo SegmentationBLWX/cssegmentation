@@ -5,6 +5,7 @@ Author:
     Zhenchao Jin
 '''
 import torch
+import torch.nn as nn
 from .bricks import BuildNormalization
 from .resnet import ResNet, BasicBlock, Bottleneck
 

@@ -17,6 +17,7 @@ SEGMENTOR_CFG = {
     'decoder_cfg': {
         'type': 'ASPPHead',
         'in_channels': 2048,
+        'feats_channels': 256,
         'out_channels': 256,
         'dilations': (1, 6, 12, 18),
         'pooling_size': 32,

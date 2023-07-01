@@ -11,6 +11,7 @@ from .resnetmib import ResNetMIB
 from .resnetucd import ResNetUCD
 from .resnetrcil import ResNetRCIL
 from .resnetplop import ResNetPLOP
+from .resnetreminder import ResNetREMINDER
 
 
 '''BuildEncoder'''
@@ -19,7 +20,7 @@ def BuildEncoder(encoder_cfg):
     # supported encoders
     supported_encoders = {
         'ResNet': ResNet, 'ResNetILT': ResNetILT, 'ResNetMIB': ResNetMIB, 'ResNetPLOP': ResNetPLOP,
-        'ResNetUCD': ResNetUCD, 'ResNetRCIL': ResNetRCIL,
+        'ResNetUCD': ResNetUCD, 'ResNetRCIL': ResNetRCIL, 'ResNetREMINDER': ResNetREMINDER,
     }
     # parse
     encoder_type = encoder_cfg.pop('type')

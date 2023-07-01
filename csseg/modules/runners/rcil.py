@@ -5,6 +5,7 @@ Author:
     Zhenchao Jin
 '''
 import copy
+import math
 import torch
 import functools
 import torch.nn.functional as F
@@ -15,9 +16,84 @@ from .base import BaseRunner
 '''RCILRunner'''
 class RCILRunner(BaseRunner):
     def __init__(self, mode, cmd_args, runner_cfg):
-        super(BaseRunner, self).__init__(
+        super(RCILRunner, self).__init__(
             mode=mode, cmd_args=cmd_args, runner_cfg=runner_cfg
         )
+    '''convertsegmentor'''
+    @torch.autocast(device_type='cuda', dtype=torch.float16)
+    def convertsegmentor(self):
+        # merge
+        def merge(conv2d, bn2d, conv_bias=None):
+            if conv_bias is not None: conv_bias = conv_bias.clone().to(conv2d.weight.device)
+            k = conv2d.weight.clone()
+            running_mean, running_var, eps = bn2d.running_mean, bn2d.running_var, bn2d.eps
+            gamma, beta = bn2d.weight.abs() + eps, bn2d.bias
+            gamma, beta = gamma / 2., beta / 2.
+            std = (running_var + eps).sqrt()
+            t = (gamma / std).reshape(-1, 1, 1, 1)
+            if conv_bias is not None:
+                return k * t, beta - running_mean * gamma / std + t.view(-1) * conv_bias.view(-1)
+            else:
+                return k * t, beta - running_mean * gamma / std
+        # mergex
+        def mergex(conv2d, bn2d, index, conv_bias=None, feats_channels=256):
+            if conv_bias is not None: conv_bias = conv_bias.clone().to(conv2d.weight.device)
+            k = conv2d.weight.clone()
+            running_mean = bn2d.running_mean[index * feats_channels: (1 + index) * feats_channels]
+            running_var = bn2d.running_var[index * feats_channels: (1 + index) * feats_channels]
+            eps = bn2d.eps
+            gamma = bn2d.weight.abs()[index * feats_channels: (1 + index) * feats_channels] + eps
+            beta = bn2d.bias[index * feats_channels: (1 + index) * feats_channels]
+            gamma, beta = gamma / 2., beta / 2.
+            std = (running_var + eps).sqrt()
+            t = (gamma / std).reshape(-1, 1, 1, 1)
+            if conv_bias is not None:
+                return k * t, beta - running_mean * gamma / std + t.view(-1) * conv_bias.view(-1)
+            else:
+                return k * t, beta - running_mean * gamma / std
+        # iter to convert
+        for name, module in model.named_modules():
+            if hasattr(module, 'conv2') and hasattr(module, 'bn2') and hasattr(module, 'conv2_branch2') and hasattr(module, 'bn2_branch2'):
+                k1, b1 = merge(module.conv2, module.bn2, module.conv2.bias.data)
+
+
+
+                
+                k2, b2 = merge(module.convs.conv2_new, module.convs.bn2_new, None)
+                k = k1 + k2
+                b = b1 + b2
+                module.convs.conv2.weight.data[:,:,:,:] = k[:,:,:,:]
+                module.convs.conv2.bias = nn.Parameter(b)
+                module.convs.bn2.bias.data[:] = torch.zeros((module.convs.bn2.weight.shape[0],))[:]
+                module.convs.bn2.running_var.data[:] = torch.ones((module.convs.bn2.weight.shape[0],))[:]
+                module.convs.bn2.eps = 0
+                module.convs.bn2.weight.data[:] = torch.ones((module.convs.bn2.weight.shape[0],))[:]
+                module.convs.bn2.running_mean.data[:] = torch.zeros((module.convs.bn2.weight.shape[0],))[:]
+                module.convs.bn2.eval()
+                module.convs.conv2.eval()
+                for p in module.convs.bn2.parameters():
+                    p.requires_grad = False
+                for p in module.convs.conv2.parameters():
+                    p.requires_grad = False
+            elif hasattr(module, 'map_convs'):
+                for i in range(4):
+                    k1, b1 = mergex(module.map_convs[i], module.map_bn, i, module.map_convs[i].bias.data)
+                    k2, b2 = mergex(module.map_convs_new[i], module.map_bn_new, i, None)
+                    k = k1 + k2
+                    b = b1 + b2
+                    module.map_convs[i].weight.data[:,:,:,:] = k[:,:,:,:]
+                    module.map_convs[i].bias = nn.Parameter(b)
+                    module.map_convs[i].eval()
+                    for p in module.map_convs[i].parameters():
+                        p.requires_grad = False
+                module.map_bn.eval()
+                for p in module.map_bn.parameters():
+                    p.requires_grad = False
+                module.map_bn.bias.data[:] = torch.zeros((module.map_bn.weight.shape[0],))[:]
+                module.map_bn.running_var.data[:] = torch.ones((module.map_bn.weight.shape[0],))[:]
+                module.map_bn.eps = 0
+                module.map_bn.weight.data[:] = torch.ones((module.map_bn.weight.shape[0],))[:]
+                module.map_bn.running_mean.data[:] = torch.zeros((module.map_bn.weight.shape[0],))[:]  
     '''train'''
     def train(self, cur_epoch):
         # initialize
@@ -74,7 +150,7 @@ class RCILRunner(BaseRunner):
             # --set zero gradient
             self.scheduler.zerograd()
             # --logging training loss info
-            seg_losses_log_dict.update(kd_losses_log_dict)
+            seg_losses_log_dict.update(pod_losses_log_dict)
             seg_losses_log_dict.pop('loss_total')
             seg_losses_log_dict['loss_total'] = loss_total.item()
             losses_log_dict = self.loggingtraininginfo(seg_losses_log_dict, losses_log_dict, init_losses_log_dict)

@@ -10,6 +10,7 @@ from .mib import MIBSegmentor
 from .base import BaseSegmentor
 from .plop import PLOPSegmentor
 from .rcil import RCILSegmentor
+from .reminder import REMINDERSegmentor
 
 
 '''BuildSegmentor'''
@@ -18,7 +19,7 @@ def BuildSegmentor(segmentor_cfg):
     # supported segmentors
     supported_segmentors = {
         'MIBSegmentor': MIBSegmentor, 'ILTSegmentor': ILTSegmentor, 'BaseSegmentor': BaseSegmentor, 'PLOPSegmentor': PLOPSegmentor,
-        'RCILSegmentor': RCILSegmentor,
+        'RCILSegmentor': RCILSegmentor, 'REMINDERSegmentor': REMINDERSegmentor,
     }
     # parse
     segmentor_type = segmentor_cfg.pop('type')
