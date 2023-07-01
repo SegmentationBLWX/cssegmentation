@@ -10,6 +10,7 @@ import torch
 import functools
 import torch.nn.functional as F
 import torch.distributed as dist
+from apex import amp
 from .base import BaseRunner
 
 
@@ -20,7 +21,6 @@ class RCILRunner(BaseRunner):
             mode=mode, cmd_args=cmd_args, runner_cfg=runner_cfg
         )
     '''convertsegmentor'''
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def convertsegmentor(self):
         # merge
         def merge(conv2d, bn2d, conv_bias=None):
@@ -54,46 +54,46 @@ class RCILRunner(BaseRunner):
         # iter to convert
         for name, module in model.named_modules():
             if hasattr(module, 'conv2') and hasattr(module, 'bn2') and hasattr(module, 'conv2_branch2') and hasattr(module, 'bn2_branch2'):
+                module.conv2.bias = nn.Parameter(torch.zeros(module.conv2.weight.shape[0]).to(module.conv2.weight.device))
+            elif hasattr(module, 'parallel_convs_branch1'):
+                for idx in range(len(module.parallel_convs_branch1)):
+                    module.parallel_convs_branch1[idx].bias = nn.Parameter(torch.zeros(module.parallel_convs_branch1[idx].weight.shape[0]).to(module.parallel_convs_branch1[idx].weight.device))
+        for name, module in model.named_modules():
+            if hasattr(module, 'conv2') and hasattr(module, 'bn2') and hasattr(module, 'conv2_branch2') and hasattr(module, 'bn2_branch2'):
                 k1, b1 = merge(module.conv2, module.bn2, module.conv2.bias.data)
-
-
-
-                
-                k2, b2 = merge(module.convs.conv2_new, module.convs.bn2_new, None)
-                k = k1 + k2
-                b = b1 + b2
-                module.convs.conv2.weight.data[:,:,:,:] = k[:,:,:,:]
-                module.convs.conv2.bias = nn.Parameter(b)
-                module.convs.bn2.bias.data[:] = torch.zeros((module.convs.bn2.weight.shape[0],))[:]
-                module.convs.bn2.running_var.data[:] = torch.ones((module.convs.bn2.weight.shape[0],))[:]
-                module.convs.bn2.eps = 0
-                module.convs.bn2.weight.data[:] = torch.ones((module.convs.bn2.weight.shape[0],))[:]
-                module.convs.bn2.running_mean.data[:] = torch.zeros((module.convs.bn2.weight.shape[0],))[:]
-                module.convs.bn2.eval()
-                module.convs.conv2.eval()
-                for p in module.convs.bn2.parameters():
-                    p.requires_grad = False
-                for p in module.convs.conv2.parameters():
-                    p.requires_grad = False
-            elif hasattr(module, 'map_convs'):
-                for i in range(4):
-                    k1, b1 = mergex(module.map_convs[i], module.map_bn, i, module.map_convs[i].bias.data)
-                    k2, b2 = mergex(module.map_convs_new[i], module.map_bn_new, i, None)
-                    k = k1 + k2
-                    b = b1 + b2
-                    module.map_convs[i].weight.data[:,:,:,:] = k[:,:,:,:]
-                    module.map_convs[i].bias = nn.Parameter(b)
-                    module.map_convs[i].eval()
-                    for p in module.map_convs[i].parameters():
-                        p.requires_grad = False
-                module.map_bn.eval()
-                for p in module.map_bn.parameters():
-                    p.requires_grad = False
-                module.map_bn.bias.data[:] = torch.zeros((module.map_bn.weight.shape[0],))[:]
-                module.map_bn.running_var.data[:] = torch.ones((module.map_bn.weight.shape[0],))[:]
-                module.map_bn.eps = 0
-                module.map_bn.weight.data[:] = torch.ones((module.map_bn.weight.shape[0],))[:]
-                module.map_bn.running_mean.data[:] = torch.zeros((module.map_bn.weight.shape[0],))[:]  
+                k2, b2 = merge(module.conv2_branch2, module.bn2_branch2, None)
+                k, b = k1 + k2, b1 + b2
+                module.conv2.weight.data[:, :, :, :] = k[:, :, :, :]
+                module.conv2.bias = nn.Parameter(b)
+                module.bn2.bias.data[:] = torch.zeros((module.bn2.weight.shape[0],))[:]
+                module.bn2.running_var.data[:] = torch.ones((module.bn2.weight.shape[0],))[:]
+                module.bn2.eps = 0
+                module.bn2.weight.data[:] = torch.ones((module.bn2.weight.shape[0],))[:]
+                module.bn2.running_mean.data[:] = torch.zeros((module.bn2.weight.shape[0],))[:]
+                module.bn2.eval()
+                module.conv2.eval()
+                for param in module.bn2.parameters():
+                    param.requires_grad = False
+                for param in module.conv2.parameters():
+                    param.requires_grad = False
+            elif hasattr(module, 'parallel_convs_branch1'):
+                for idx in range(len(module.parallel_convs_branch1)):
+                    k1, b1 = mergex(module.parallel_convs_branch1[idx], module.parallel_bn_branch1[0], idx, module.parallel_convs_branch1[idx].bias.data)
+                    k2, b2 = mergex(module.parallel_convs_branch2[idx], module.parallel_bn_branch2[0], idx, None)
+                    k, b = k1 + k2, b1 + b2
+                    module.parallel_convs_branch1[idx].weight.data[:, :, :, :] = k[:, :, :, :]
+                    module.parallel_convs_branch1[idx].bias = nn.Parameter(b)
+                    module.parallel_convs_branch1[idx].eval()
+                    for param in module.parallel_convs_branch1[idx].parameters():
+                        param.requires_grad = False
+                module.parallel_bn_branch1[0].bias.data[:] = torch.zeros((module.parallel_bn_branch1[0].weight.shape[0],))[:]
+                module.parallel_bn_branch1[0].running_var.data[:] = torch.ones((module.parallel_bn_branch1[0].weight.shape[0],))[:]
+                module.parallel_bn_branch1[0].eps = 0
+                module.parallel_bn_branch1[0].weight.data[:] = torch.ones((module.parallel_bn_branch1[0].weight.shape[0],))[:]
+                module.parallel_bn_branch1[0].running_mean.data[:] = torch.zeros((module.parallel_bn_branch1[0].weight.shape[0],))[:]
+                module.parallel_bn_branch1.eval()
+                for param in module.parallel_bn_branch1.parameters():
+                    param.requires_grad = False  
     '''train'''
     def train(self, cur_epoch):
         # initialize
@@ -145,8 +145,9 @@ class RCILRunner(BaseRunner):
             # --merge two losses
             loss_total = pod_total_loss + seg_total_loss
             # --perform back propagation
-            self.grad_scaler.scale(loss_total).backward()
-            self.scheduler.step(self.grad_scaler)
+            with amp.scale_loss(loss_total, self.optimizer) as scaled_loss_total:
+                scaled_loss_total.backward()
+            self.scheduler.step()
             # --set zero gradient
             self.scheduler.zerograd()
             # --logging training loss info
@@ -155,7 +156,6 @@ class RCILRunner(BaseRunner):
             seg_losses_log_dict['loss_total'] = loss_total.item()
             losses_log_dict = self.loggingtraininginfo(seg_losses_log_dict, losses_log_dict, init_losses_log_dict)
     '''featuresdistillation'''
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def featuresdistillation(self, history_distillation_feats, distillation_feats, num_known_classes_list=None, dataset_type='VOCDataset', scale_factor=1.0, spp_scales=[4, 8, 12, 16, 20, 24]):
         pod_total_loss = self.featuresdistillationchannel(history_distillation_feats, distillation_feats, num_known_classes_list, dataset_type) + \
             self.featuresdistillationspatial(history_distillation_feats, distillation_feats, num_known_classes_list, dataset_type, spp_scales)
@@ -166,7 +166,6 @@ class RCILRunner(BaseRunner):
         return pod_total_loss, pod_losses_log_dict
     '''featuresdistillationchannel'''
     @staticmethod
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def featuresdistillationchannel(history_distillation_feats, distillation_feats, num_known_classes_list=None, dataset_type='VOCDataset'):
         # assert and initialize
         assert len(history_distillation_feats) == len(distillation_feats)
@@ -204,7 +203,6 @@ class RCILRunner(BaseRunner):
         return loss
     '''featuresdistillationspatial'''
     @staticmethod
-    @torch.autocast(device_type='cuda', dtype=torch.float16)
     def featuresdistillationspatial(history_distillation_feats, distillation_feats, num_known_classes_list=None, dataset_type='VOCDataset', spp_scales=[4, 8, 12, 16, 20, 24]):
         # assert and initialize
         assert len(history_distillation_feats) == len(distillation_feats)
