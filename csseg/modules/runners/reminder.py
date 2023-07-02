@@ -99,39 +99,59 @@ class REMINDERRunner(PLOPRunner):
             losses_log_dict = self.loggingtraininginfo(seg_losses_log_dict, losses_log_dict, init_losses_log_dict)
     '''cswfeaturesdistillation'''
     @staticmethod
-    def cswfeaturesdistillation(logits_source, logits_target, temperature=3, delta=0.0):
-        pass
+    def cswfeaturesdistillation(logits_source, logits_target, seg_targets_mergepseudolabels, prototypes, temperature=3, delta=0.0, history_prototypes=None):
+        batch_prototypes.detach()
+        logits_target.detach()
+        logits_source = logits_source.narrow(1, 0, logits_target.shape[1])
+        assert not torch.isnan(batch_prototypes).any(), "NaN in prototype"
+        assert logits_source[0].shape == logits_target[0].shape, 'the output dim of teacher and student differ'
+        B, _, H, W = logits_source.shape
+        logits_source = logits_source.permute(0, 2, 3, 1).contiguous().view(B*H*W, -1)[mask] # T * N_old, where T=BxHxW
+        logits_target = logits_target.permute(0, 2, 3, 1).contiguous().view(B*H*W, -1)[mask] # T * N_old
+        seg = seg.view(B*H*W)[mask] # T
+        T = seg.size(0)
+        proto_by_label = batch_prototypes[seg] # T * C
+        r_map = pairwise_cosine_sim(proto_by_label, self.prototypes.to(proto_by_label.device)) # T * N_old
+        r_map = F.softmax(r_map, dim=-1)
+        r_map[r_map < (self.delta/r_map.size(1))] = 0.0
+
+        logits_source = F.log_softmax(logits_source / self.T, dim=1)
+        logits_target = F.softmax(logits_target / self.T, dim=1)
+        logits_target = logits_target * r_map + 10 ** (-7)
+        logits_target = torch.autograd.Variable(logits_target.data.cuda(), requires_grad=False)
+        loss = self.T * self.T * torch.sum(-logits_target*logits_source)/T
+        return loss
+    def update_prototypes(self, train_loader):
+        device = self.device
+        with torch.no_grad():
+            for cur_step, (images, labels) in enumerate(train_loader):
+                images = images.to(device, dtype=torch.float32)
+                labels = labels.to(device, dtype=torch.long)
+                _, features = self.model(images, ret_intermediate=True)
+                exist_label = labels[labels != 255].unique()
+                pre_logits = features['pre_logits']
+                if 'cityscapes' in self.dataset:
+                    cur_classes = list(range(self.nb_current_classes))
+                else:
+                    cur_classes = list(range(self.old_classes, self.nb_current_classes))
+                batch_prototypes = compute_prototype(labels, pre_logits, cur_classes)
+
+                self.proto_count[exist_label] += 1
+                #self.proto_count = self.proto_count.to(device)
+                #batch_size = images.size(0)
+                self.current_prototypes[exist_label] = (1 / self.proto_count[exist_label]).unsqueeze(1) * (
+                        (self.proto_count[exist_label] - 1).unsqueeze(1) * self.current_prototypes[exist_label] + batch_prototypes[exist_label])
 
 
-
-# class ClassSimilarityWeightedKD(nn.Module):
-#     def __init__(self,prototypes, temperature=3, delta=0.0):
-#         super(ClassSimilarityWeightedKD, self).__init__()
-#         self.T = temperature
-#         self.delta = delta
-#         assert not torch.isnan(prototypes).any(), "NaN in prototype"
-#         self.prototypes = prototypes # Size N_old * C, where N_old and C are n_classes and n_channels of feature map
-#         self.prototypes.detach()
-
-#     def forward(self, logits_source, logits_target, batch_prototypes, seg, mask):
-#         batch_prototypes.detach()
-#         logits_target.detach()
-#         logits_source = logits_source.narrow(1, 0, logits_target.shape[1])
-#         assert not torch.isnan(batch_prototypes).any(), "NaN in prototype"
-#         assert logits_source[0].shape == logits_target[0].shape, 'the output dim of teacher and student differ'
-#         B, _, H, W = logits_source.shape
-#         logits_source = logits_source.permute(0, 2, 3, 1).contiguous().view(B*H*W, -1)[mask] # T * N_old, where T=BxHxW
-#         logits_target = logits_target.permute(0, 2, 3, 1).contiguous().view(B*H*W, -1)[mask] # T * N_old
-#         seg = seg.view(B*H*W)[mask] # T
-#         T = seg.size(0)
-#         proto_by_label = batch_prototypes[seg] # T * C
-#         r_map = pairwise_cosine_sim(proto_by_label, self.prototypes.to(proto_by_label.device)) # T * N_old
-#         r_map = F.softmax(r_map, dim=-1)
-#         r_map[r_map < (self.delta/r_map.size(1))] = 0.0
-
-#         logits_source = F.log_softmax(logits_source / self.T, dim=1)
-#         logits_target = F.softmax(logits_target / self.T, dim=1)
-#         logits_target = logits_target * r_map + 10 ** (-7)
-#         logits_target = torch.autograd.Variable(logits_target.data.cuda(), requires_grad=False)
-#         loss = self.T * self.T * torch.sum(-logits_target*logits_source)/T
-#         return loss
+def compute_prototype(seg,features,classes):
+    max_class = max(classes)
+    out = torch.zeros((max_class+1,features.size(1))).to(seg.device)
+    B,H,W = seg.shape
+    features = F.interpolate(features, size=(H, W), mode='bilinear', align_corners=True)
+    seg = seg.view(-1)
+    features = features.permute(0,3,1,2).contiguous().view(B*H*W, -1)
+    for c in classes:
+        selected_features = features[seg==c]
+        if len(selected_features) > 0:
+            out[c] = selected_features.mean(dim=0)
+    return out
