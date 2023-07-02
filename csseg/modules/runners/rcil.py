@@ -52,13 +52,13 @@ class RCILRunner(BaseRunner):
             else:
                 return k * t, beta - running_mean * gamma / std
         # iter to convert
-        for name, module in model.named_modules():
+        for name, module in self.segmentor.named_modules():
             if hasattr(module, 'conv2') and hasattr(module, 'bn2') and hasattr(module, 'conv2_branch2') and hasattr(module, 'bn2_branch2'):
                 module.conv2.bias = nn.Parameter(torch.zeros(module.conv2.weight.shape[0]).to(module.conv2.weight.device))
             elif hasattr(module, 'parallel_convs_branch1'):
                 for idx in range(len(module.parallel_convs_branch1)):
                     module.parallel_convs_branch1[idx].bias = nn.Parameter(torch.zeros(module.parallel_convs_branch1[idx].weight.shape[0]).to(module.parallel_convs_branch1[idx].weight.device))
-        for name, module in model.named_modules():
+        for name, module in self.segmentor.named_modules():
             if hasattr(module, 'conv2') and hasattr(module, 'bn2') and hasattr(module, 'conv2_branch2') and hasattr(module, 'bn2_branch2'):
                 k1, b1 = merge(module.conv2, module.bn2, module.conv2.bias.data)
                 k2, b2 = merge(module.conv2_branch2, module.bn2_branch2, None)

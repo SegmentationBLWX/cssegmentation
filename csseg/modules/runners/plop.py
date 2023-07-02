@@ -21,8 +21,8 @@ class PLOPRunner(BaseRunner):
         super(PLOPRunner, self).__init__(
             mode=mode, cmd_args=cmd_args, runner_cfg=runner_cfg
         )
-    '''preparefortrain'''
-    def preparefortrain(self):
+    '''beforetrainactions'''
+    def beforetrainactions(self):
         if self.history_segmentor is not None:
             self.thresholds, self.max_entropy = self.findmedianforpseudolabeling()
     '''train'''

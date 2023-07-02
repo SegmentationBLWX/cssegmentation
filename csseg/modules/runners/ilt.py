@@ -57,7 +57,7 @@ class ILTRunner(BaseRunner):
                     distillation_feats=F.interpolate(outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners),
                     **losses_cfgs['distillation_logits']
                 )
-                kd_loss_feats = BuildLoss(losses_cfgs['distillation_features'])(predition=outputs['distillation_feats'], target=history_outputs['distillation_feats'])
+                kd_loss_feats = BuildLoss(losses_cfgs['distillation_features'])(prediction=outputs['distillation_feats'], target=history_outputs['distillation_feats'])
                 value = kd_loss_feats.data.clone()
                 dist.all_reduce(value.div_(dist.get_world_size()))
                 kd_losses_log_dict['kd_loss_feats'] = value.item()

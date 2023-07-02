@@ -32,7 +32,7 @@ SEGMENTOR_CFG = {
             'loss_seg': {'CrossEntropyLoss': {'scale_factor': 1.0, 'reduction': 'mean', 'ignore_index': 255}}
         },
         'distillation_logits': {'scale_factor': 100, 'alpha': 1.0},
-        'distillation_features': {'MSELoss': {'scale_factor': 100, 'reduction': 'mean'}},
+        'distillation_features': {'type': 'MSELoss', 'scale_factor': 100, 'reduction': 'mean'},
     },
 }
 # RUNNER_CFG

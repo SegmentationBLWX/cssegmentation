@@ -103,7 +103,7 @@ class BaseRunner():
             if hasattr(self.segmentor.module, 'initaddedclassifier'):
                 self.segmentor.module.initaddedclassifier(device=self.device)
             if hasattr(self, 'convertsegmentor'):
-                self.convertsegmentor(self.segmentor)
+                self.convertsegmentor()
             self.history_segmentor.load_state_dict(ckpts['segmentor'], strict=True)
             for param in self.history_segmentor.parameters():
                 param.requires_grad = False
@@ -121,7 +121,7 @@ class BaseRunner():
         if self.cmd_args.local_rank == 0:
             self.logger_handle.info(f'Load Config From: {self.cmd_args.cfgfilepath}')
             self.logger_handle.info(f'Config Details: \n{self.runner_cfg}')
-        self.preparefortrain()
+        self.beforetrainactions()
         for cur_epoch in range(self.scheduler.cur_epoch, self.scheduler.max_epochs+1):
             if self.cmd_args.local_rank == 0:
                 self.logger_handle.info(f'Start to train {self.runner_cfg["algorithm"]} at Task {self.runner_cfg["task_id"]}, Epoch {cur_epoch}')
@@ -141,11 +141,15 @@ class BaseRunner():
                         symlink(ckpt_path, os.path.join(self.task_work_dir, 'best.pth'))
                         saveaspickle(results, os.path.join(self.task_work_dir, 'best.pkl'))
                     self.logger_handle.info(results)
+        self.aftertrainactions()
         if self.cmd_args.local_rank == 0:
             best_results = loadpicklefile(os.path.join(self.task_work_dir, 'best.pkl'))
             self.logger_handle.info(f'Best Result at Task {self.runner_cfg["task_id"]}: \n{best_results}')
-    '''preparefortrain'''
-    def preparefortrain(self):
+    '''aftertrainactions'''
+    def aftertrainactions(self):
+        pass
+    '''beforetrainactions'''
+    def beforetrainactions(self):
         pass
     '''train'''
     def train(self, cur_epoch):

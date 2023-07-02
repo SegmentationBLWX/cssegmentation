@@ -5,11 +5,11 @@ Author:
     Zhenchao Jin
 '''
 import torch
-from .mib import MIBSegmentor
+from .base import BaseSegmentor
 
 
 '''ILTSegmentor'''
-class ILTSegmentor(MIBSegmentor):
+class ILTSegmentor(BaseSegmentor):
     def __init__(self, selected_indices=(0,), num_known_classes_list=[], align_corners=False, encoder_cfg={}, decoder_cfg={}):
         super(ILTSegmentor, self).__init__(
             selected_indices=selected_indices, num_known_classes_list=num_known_classes_list, 
