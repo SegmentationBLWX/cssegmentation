@@ -4,6 +4,7 @@ Function:
 Author:
     Zhenchao Jin
 '''
+import re
 import torch
 import torch.nn as nn
 from .bricks import BuildNormalization

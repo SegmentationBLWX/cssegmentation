@@ -1,6 +1,7 @@
 '''mib_r101iabnd16_aspp_512x512_vocaug10-1_disjoint'''
 import os
-from .base_cfg import RUNNER_CFG
+import copy
+from .base_cfg import RUNNER_CFG, SEGMENTOR_CFG
 from .._base_ import DATASET_CFG_VOCAUG_512x512, OPTIMIZER_CFG_SGD, SCHEDULER_CFG_POLY, DATALOADER_CFG_BS24, PARALLEL_CFG
 
 
@@ -23,6 +24,10 @@ for i in range(1, 11):
 # add parallel_cfg
 RUNNER_CFG['parallel_cfg'] = PARALLEL_CFG.copy()
 # modify RUNNER_CFG
+RUNNER_CFG['segmentor_cfg'] = [
+    copy.deepcopy(SEGMENTOR_CFG) for _ in range(11)
+]
+RUNNER_CFG['segmentor_cfg'][-1]['losses_cfgs']['distillation']['scale_factor'] = 10
 RUNNER_CFG.update({
     'task_name': '10-1',
     'num_tasks': 11,

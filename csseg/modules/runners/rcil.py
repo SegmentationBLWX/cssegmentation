@@ -21,8 +21,8 @@ class RCILRunner(BaseRunner):
         super(RCILRunner, self).__init__(
             mode=mode, cmd_args=cmd_args, runner_cfg=runner_cfg
         )
-    '''convertsegmentor'''
-    def convertsegmentor(self):
+    '''convertsegmentors'''
+    def convertsegmentors(self):
         # merge
         def merge(conv2d, bn2d, conv_bias=None):
             if conv_bias is not None: conv_bias = conv_bias.clone().to(conv2d.weight.device)
@@ -94,7 +94,15 @@ class RCILRunner(BaseRunner):
                 module.parallel_bn_branch1[0].running_mean.data[:] = torch.zeros((module.parallel_bn_branch1[0].weight.shape[0],))[:]
                 module.parallel_bn_branch1.eval()
                 for param in module.parallel_bn_branch1.parameters():
-                    param.requires_grad = False  
+                    param.requires_grad = False
+        # deal with history_segmentor
+        if self.runner_cfg['task_id'] > 1:
+            for name, module in self.history_segmentor.named_modules():
+                if hasattr(module, 'conv2') and hasattr(module, 'bn2') and hasattr(module, 'conv2_branch2') and hasattr(module, 'bn2_branch2'):
+                    module.conv2.bias = nn.Parameter(torch.zeros(module.conv2.weight.shape[0]).to(module.conv2.weight.device))
+                elif hasattr(module, 'parallel_convs_branch1'):
+                    for idx in range(len(module.parallel_convs_branch1)):
+                        module.parallel_convs_branch1[idx].bias = nn.Parameter(torch.zeros(module.parallel_convs_branch1[idx].weight.shape[0]).to(module.parallel_convs_branch1[idx].weight.device))
     '''train'''
     def train(self, cur_epoch):
         # initialize
