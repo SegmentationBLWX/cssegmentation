@@ -121,3 +121,36 @@ class ResNetRCIL(ResNet):
                 outs.append(feats[0])
                 distillation_feats.append(feats[1])
         return tuple(outs), tuple(distillation_feats)
+    '''convert in-place abn official checkpoints'''
+    def convertabnckpt(self, state_dict):
+        for key in list(state_dict.keys()):
+            state_dict[key[7:]] = state_dict.pop(key)
+        converted_state_dict = dict()
+        for key in list(state_dict.keys()):
+            if 'mod1' in key:
+                converted_state_dict[key[5:]] = state_dict.pop(key)
+            else:
+                converted_key = key.replace('convs.', '')
+                for idx in range(2, 6):
+                    converted_key = converted_key.replace(f'mod{idx}', f'layer{idx-1}')
+                idx = re.findall(r'\.block(.*?)\.', converted_key)
+                if len(idx) > 0:
+                    idx = int(idx[0])
+                    converted_key = converted_key.replace(f'block{idx}', f'{idx-1}')
+                for idx in range(1, 5):
+                    oldkeys_to_keys = {
+                        f'layer{idx}.0.proj_conv.weight': f'layer{idx}.0.downsample.0.weight', 
+                        f'layer{idx}.0.proj_bn.weight': f'layer{idx}.0.downsample.1.weight', 
+                        f'layer{idx}.0.proj_bn.bias': f'layer{idx}.0.downsample.1.bias', 
+                        f'layer{idx}.0.proj_bn.running_mean': f'layer{idx}.0.downsample.1.running_mean', 
+                        f'layer{idx}.0.proj_bn.running_var': f'layer{idx}.0.downsample.1.running_var',
+                    }
+                    if converted_key in oldkeys_to_keys:
+                        converted_key = oldkeys_to_keys[converted_key]
+                        break
+                assert converted_key not in converted_state_dict
+                converted_state_dict[converted_key] = state_dict.pop(key)
+        for key in list(converted_state_dict.keys()):
+            if 'conv2' in key or 'bn2' in key:
+                converted_state_dict[key.replace('conv2', 'conv2_branch2').replace('bn2', 'bn2_branch2')] = converted_state_dict[key]
+        return converted_state_dict
