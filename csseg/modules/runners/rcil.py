@@ -52,7 +52,7 @@ class RCILRunner(BaseRunner):
                 return k * t, beta - running_mean * gamma / std + t.view(-1) * conv_bias.view(-1)
             else:
                 return k * t, beta - running_mean * gamma / std
-        # iter to convert
+        # iter to convert segmentor
         for name, module in self.segmentor.named_modules():
             if hasattr(module, 'conv2') and hasattr(module, 'bn2') and hasattr(module, 'conv2_branch2') and hasattr(module, 'bn2_branch2'):
                 module.conv2.bias = nn.Parameter(torch.zeros(module.conv2.weight.shape[0]).to(module.conv2.weight.device))
@@ -95,7 +95,7 @@ class RCILRunner(BaseRunner):
                 module.parallel_bn_branch1.eval()
                 for param in module.parallel_bn_branch1.parameters():
                     param.requires_grad = False
-        # deal with history_segmentor
+        # iter to convert history_segmentor
         if self.runner_cfg['task_id'] > 1:
             for name, module in self.history_segmentor.named_modules():
                 if hasattr(module, 'conv2') and hasattr(module, 'bn2') and hasattr(module, 'conv2_branch2') and hasattr(module, 'bn2_branch2'):

@@ -23,6 +23,7 @@ for i in range(1, 6):
 # add parallel_cfg
 RUNNER_CFG['parallel_cfg'] = PARALLEL_CFG.copy()
 # modify RUNNER_CFG
+RUNNER_CFG['segmentor_cfg']['losses_cfgs']['distillation'] = 10
 RUNNER_CFG.update({
     'task_name': '15-5s',
     'num_tasks': 6,
