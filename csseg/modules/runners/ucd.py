@@ -38,9 +38,9 @@ class UCDMIBRunner(MIBRunner):
             # --feed to history_segmentor
             if self.history_segmentor is not None:
                 with torch.no_grad():
-                    history_outputs = self.history_segmentor(images)
+                    history_outputs = self.history_segmentor(images, task_id=self.runner_cfg['task_id'])
             # --forward to segmentor
-            outputs = self.segmentor(images)
+            outputs = self.segmentor(images, task_id=self.runner_cfg['task_id'])
             # --calculate segmentation losses
             seg_losses_cfgs = copy.deepcopy(losses_cfgs['segmentation_cl']) if self.history_segmentor is not None else copy.deepcopy(losses_cfgs['segmentation_init'])
             if self.history_segmentor is not None:
@@ -84,6 +84,9 @@ class UCDMIBRunner(MIBRunner):
             seg_losses_log_dict.pop('loss_total')
             seg_losses_log_dict['loss_total'] = loss_total.item()
             losses_log_dict = self.loggingtraininginfo(seg_losses_log_dict, losses_log_dict, init_losses_log_dict)
+            # del outputs and perform empty_cache to save memory
+            del outputs
+            torch.cuda.empty_cache()
     '''contrastivelearning'''
     @staticmethod
     def contrastivelearning(anchor_features, contrast_features, anchor_labels, contrast_labels, P=None, temperature=0.07, scale_factor=1.0, reduction='mean'):

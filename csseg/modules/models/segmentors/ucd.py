@@ -16,7 +16,7 @@ class UCDSegmentor(MIBSegmentor):
             align_corners=align_corners, encoder_cfg=encoder_cfg, decoder_cfg=decoder_cfg,
         )
     '''forward'''
-    def forward(self, x):
+    def forward(self, x, **kwargs):
         img_size = x.shape[2:]
         # feed to encoder
         encoder_outputs = self.encoder(x)
@@ -28,7 +28,10 @@ class UCDSegmentor(MIBSegmentor):
         seg_logits = [conv(decoder_outputs) for conv in self.convs_cls]
         seg_logits = torch.cat(seg_logits, dim=1)
         # construct outputs
-        outputs = {'seg_logits': seg_logits, 'decoder_outputs': self.attention(decoder_outputs)}
+        if kwargs.get('task_id', 0) > 0:
+            outputs = {'seg_logits': seg_logits, 'decoder_outputs': self.attention(decoder_outputs)}
+        else:
+            outputs = {'seg_logits': seg_logits}
         # return
         return outputs
     '''attention'''

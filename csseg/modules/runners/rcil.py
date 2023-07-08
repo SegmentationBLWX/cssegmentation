@@ -114,6 +114,20 @@ class RCILRunner(BaseRunner):
         losses_log_dict = copy.deepcopy(init_losses_log_dict)
         self.segmentor.train()
         self.train_loader.sampler.set_epoch(cur_epoch)
+        if self.runner_cfg['task_id'] > 0:
+            for name, module in self.segmentor.named_modules():
+                if hasattr(module, 'conv2') and hasattr(module, 'bn2') and hasattr(module, 'conv2_branch2') and hasattr(module, 'bn2_branch2'):
+                    for param in module.conv2.parameters():
+                        param.requires_grad = False
+                    for param in module.bn2.parameters():
+                        param.requires_grad = False
+                    module.bn2.eval()
+                elif hasattr(module, 'parallel_convs_branch1'):
+                    for param in module.parallel_convs_branch1.parameters():
+                        param.requires_grad = False
+                    for param in module.parallel_bn_branch1.parameters():
+                        param.requires_grad = False
+                    module.parallel_bn_branch1.eval()
         # start to iter
         for batch_idx, data_meta in enumerate(self.train_loader):
             # --fetch data
