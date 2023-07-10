@@ -251,7 +251,7 @@ class RCILRunner(BaseRunner):
             if idx == len(history_distillation_feats) - 1:
                 if dataset_type == 'ADE20kDataset':
                     pckd_factor = 5e-7
-                elif dataset_type == "voc":
+                elif dataset_type == "VOCDataset":
                     pckd_factor = 0.0005
             else:
                 if dataset_type == 'ADE20kDataset':
