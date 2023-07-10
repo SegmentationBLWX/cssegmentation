@@ -65,7 +65,7 @@ class UCDMIBRunner(MIBRunner):
             cl_total_loss, cl_losses_log_dict = 0, {}
             if self.history_segmentor is not None:
                 anchor_features, contrast_features, anchor_labels, contrast_labels, P = self.preprocessforcontrastivelearning(
-                    outputs['decoder_outputs'], seg_targets, history_outputs['seg_logits'], history_outputs['decoder_outputs']
+                    outputs['decoder_outputs'], seg_targets, history_outputs['seg_logits'], history_outputs['decoder_outputs'], num_known_classes=sum(self.runner_cfg['segmentor_cfg']['num_known_classes_list']),
                 )
                 cl_total_loss, cl_losses_log_dict = self.contrastivelearning(
                     anchor_features, contrast_features, anchor_labels, contrast_labels, P, **losses_cfgs['contrastive']
@@ -121,31 +121,33 @@ class UCDMIBRunner(MIBRunner):
         return loss, cl_losses_log_dict
     '''preprocessforcontrastivelearning'''
     @staticmethod
-    def preprocessforcontrastivelearning(decoder_outputs, seg_targets, history_seg_logits, history_decoder_outputs, ignore_index=255):
+    def preprocessforcontrastivelearning(decoder_outputs, seg_targets, history_seg_logits, history_decoder_outputs, num_known_classes=None):
         assert decoder_outputs.shape[2:] == history_decoder_outputs.shape[2:] and decoder_outputs.shape[2:] == history_seg_logits.shape[2:]
         # re-arrange
         batch_size, num_channels, h, w = decoder_outputs.size()
-        seg_targets = F.interpolate(seg_targets.detach().unsqueeze(1), size=decoder_outputs.shape[-2:], mode='nearest').long()
+        seg_targets = F.interpolate(torch.tensor(seg_targets.clone().detach(), dtype=torch.float32).unsqueeze(1), size=decoder_outputs.shape[-2:], mode='bilinear', align_corners=False).type(torch.int8)
+        seg_targets[seg_targets < 0] = 0
+        seg_targets[seg_targets > num_known_classes] = 0
         decoder_outputs = decoder_outputs.permute(0, 2, 3, 1).contiguous().reshape(batch_size, h * w, num_channels)
         history_decoder_outputs = history_decoder_outputs.detach().permute(0, 2, 3, 1).contiguous().reshape(batch_size, h * w, num_channels)
         # merge pesudo labels to seg_targets
         mask_current_classes = seg_targets.view(-1) > 0
         current_classes_minclsid = seg_targets.view(-1)[mask_current_classes].min()
         seg_targets_mergepseudolabels = seg_targets.squeeze(1)
-        seg_targets_mergepseudolabels[seg_targets_mergepseudolabels == 0] = history_seg_logits.max(dim=1)[1].type_as(seg_targets_mergepseudolabels)[seg_targets_mergepseudolabels == 0]
+        seg_targets_mergepseudolabels[seg_targets_mergepseudolabels == 0] = history_seg_logits.max(dim=1)[1].cpu().to(seg_targets_mergepseudolabels.dtype)[seg_targets_mergepseudolabels == 0]
         seg_targets_mergepseudolabels = seg_targets_mergepseudolabels.reshape(batch_size * h * w)
         # obtain anchor_labels and contrast_labels
-        anchor_labels = seg_targets_mergepseudolabels[(seg_targets_mergepseudolabels > 0) & (seg_targets_mergepseudolabels != ignore_index)].clone()
-        contrast_labels = torch.cat([anchor_labels, seg_targets_mergepseudolabels[(seg_targets_mergepseudolabels > 0) & (seg_targets_mergepseudolabels != ignore_index) & ~mask_current_classes]], dim=0)
+        anchor_labels = seg_targets_mergepseudolabels[seg_targets_mergepseudolabels > 0].clone()
+        contrast_labels = torch.cat([anchor_labels, seg_targets_mergepseudolabels[(seg_targets_mergepseudolabels > 0) & ~mask_current_classes]], dim=0)
         # obtain anchor_features and contrast_features
-        anchor_features = F.normalize(decoder_outputs.reshape(batch_size * h * w, num_channels)[(seg_targets_mergepseudolabels > 0) & (seg_targets_mergepseudolabels != ignore_index)], dim=1)
-        contrast_features = torch.cat([anchor_features, F.normalize(history_decoder_outputs.reshape(batch_size * h * w, num_channels)[(seg_targets_mergepseudolabels > 0) & (seg_targets_mergepseudolabels != ignore_index) & ~mask_current_classes], dim=1)], dim=0).detach()
+        anchor_features = F.normalize(decoder_outputs.reshape(batch_size * h * w, num_channels)[seg_targets_mergepseudolabels > 0], dim=1)
+        contrast_features = torch.cat([anchor_features, F.normalize(history_decoder_outputs.reshape(batch_size * h * w, num_channels)[(seg_targets_mergepseudolabels > 0) & ~mask_current_classes], dim=1)], dim=0).detach()
         # make joint probability mask
         history_seg_probs = torch.softmax(history_seg_logits.permute(0, 2, 3, 1), dim=-1)
         history_seg_probs = history_seg_probs.reshape(batch_size * h * w, -1)
-        history_seg_probs_anchor = history_seg_probs[(seg_targets_mergepseudolabels > 0) & (seg_targets_mergepseudolabels != ignore_index)]
+        history_seg_probs_anchor = history_seg_probs[seg_targets_mergepseudolabels > 0]
         history_seg_probs_contrast = torch.cat(
-            [history_seg_probs_anchor, history_seg_probs[(seg_targets_mergepseudolabels > 0) & (seg_targets_mergepseudolabels != ignore_index) & ~mask_current_classes]], dim=0
+            [history_seg_probs_anchor, history_seg_probs[(seg_targets_mergepseudolabels > 0) & ~mask_current_classes]], dim=0
         )
         JM_p = torch.mm(history_seg_probs_anchor, history_seg_probs_contrast.T)
         # mask old classes on anchor_labels

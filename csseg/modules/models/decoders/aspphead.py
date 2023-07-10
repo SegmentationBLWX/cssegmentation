@@ -51,7 +51,7 @@ class ASPPHead(nn.Module):
             BuildNormalization(placeholder=out_channels, norm_cfg=norm_cfg),
             BuildActivation(act_cfg=act_cfg),
         )
-        # initialize parameters'''
+        # initialize parameters
         if hasattr(self.bottleneck_bn[0], 'activation'):
             self.initparams(self.bottleneck_bn[0].activation, self.bottleneck_bn[0].activation_param)
         else:

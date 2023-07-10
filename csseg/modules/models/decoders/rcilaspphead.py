@@ -56,7 +56,7 @@ class RCILASPPHead(nn.Module):
             BuildNormalization(placeholder=out_channels, norm_cfg=norm_cfg),
             BuildActivation(act_cfg=act_cfg),
         )
-        # initialize parameters'''
+        # initialize parameters
         assert norm_cfg['activation'] == 'identity'
         self.initparams(actname2torchactname(act_cfg['type']), act_cfg.get('negative_slope'))
     '''initparams'''

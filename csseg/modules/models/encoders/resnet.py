@@ -217,7 +217,7 @@ class ResNet(nn.Module):
     def makelayer(self, block, inplanes, planes, num_blocks, stride=1, dilation=1, contract_dilation=True, use_avg_for_downsample=False, norm_cfg=None, act_cfg=None):
         shortcut_norm_cfg, shortcut_act_cfg = norm_cfg, act_cfg
         if self.use_inplaceabn_style:
-            assert act_cfg is None or norm_cfg['activation'] == 'identity' or norm_cfg['activation_param'] == 1.0
+            assert act_cfg is None or norm_cfg['activation'] == 'identity'
             shortcut_act_cfg = {'type': 'LeakyReLU', 'inplace': True, 'negative_slope': 0.01}
             shortcut_norm_cfg = {'type': 'InPlaceABNSync', 'activation': 'identity'}
         downsample = None
