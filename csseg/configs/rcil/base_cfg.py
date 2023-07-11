@@ -32,6 +32,7 @@ SEGMENTOR_CFG = {
             'loss_seg': {'MIBUnbiasedCrossEntropyLoss': {'scale_factor': 1.0, 'reduction': 'mean', 'ignore_index': 255}}
         },
         'distillation': {'scale_factor': 1.0, 'spp_scales': [4, 8, 12, 16, 20, 24]},
+        'distillation_mib': {'scale_factor': 100, 'alpha': 1.0},
     }
 }
 # RUNNER_CFG

@@ -57,8 +57,10 @@ class RCILASPPHead(nn.Module):
             nn.LeakyReLU(0.01),
         )
         # initialize parameters
-        assert norm_cfg['activation'] == 'identity'
-        self.initparams(actname2torchactname(act_cfg['type']), act_cfg.get('negative_slope'))
+        if hasattr(self.bottleneck_bn[0], 'activation'):
+            self.initparams(self.bottleneck_bn[0].activation, self.bottleneck_bn[0].activation_param)
+        else:
+            self.initparams(actname2torchactname(act_cfg['type']), act_cfg.get('negative_slope'))
     '''initparams'''
     def initparams(self, nonlinearity, param=None):
         gain = nn.init.calculate_gain(nonlinearity, param)

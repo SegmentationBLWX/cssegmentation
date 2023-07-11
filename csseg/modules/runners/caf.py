@@ -1,6 +1,6 @@
 '''
 Function:
-    Implementation of "Class Similarity Weighted Knowledge Distillation for Continual Semantic Segmentation"
+    Implementation of "Continual attentive fusion for incremental learning in semantic segmentation"
 Author:
     Zhenchao Jin
 '''

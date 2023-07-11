@@ -12,6 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.distributed as dist
 from apex import amp
+from .mib import MIBRunner
 from .base import BaseRunner
 
 
@@ -153,7 +154,7 @@ class RCILRunner(BaseRunner):
                 seg_targets=seg_targets, 
                 losses_cfgs=seg_losses_cfgs,
             )
-            # --calculate distillation losses
+            # --calculate pod distillation losses
             pod_total_loss, pod_losses_log_dict = 0, {}
             if self.history_segmentor is not None:
                 distillation_feats = outputs['distillation_feats']
@@ -165,8 +166,16 @@ class RCILRunner(BaseRunner):
                     dataset_type=self.runner_cfg['dataset_cfg']['type'],
                     **losses_cfgs['distillation']
                 )
-            # --merge two losses
-            loss_total = pod_total_loss + seg_total_loss
+            # --calculate mib distillation losses
+            kd_total_loss, kd_losses_log_dict = 0, {}
+            if self.history_segmentor is not None:
+                kd_total_loss, kd_losses_log_dict = MIBRunner.featuresdistillation(
+                    history_distillation_feats=F.interpolate(history_outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners), 
+                    distillation_feats=F.interpolate(outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners),
+                    **losses_cfgs['distillation_mib']
+                )
+            # --merge three losses
+            loss_total = pod_total_loss + kd_total_loss + seg_total_loss
             # --perform back propagation
             with amp.scale_loss(loss_total, self.optimizer) as scaled_loss_total:
                 scaled_loss_total.backward()
@@ -175,6 +184,7 @@ class RCILRunner(BaseRunner):
             self.scheduler.zerograd()
             # --logging training loss info
             seg_losses_log_dict.update(pod_losses_log_dict)
+            seg_losses_log_dict.update(kd_losses_log_dict)
             seg_losses_log_dict.pop('loss_total')
             seg_losses_log_dict['loss_total'] = loss_total.item()
             losses_log_dict = self.loggingtraininginfo(seg_losses_log_dict, losses_log_dict, init_losses_log_dict)
