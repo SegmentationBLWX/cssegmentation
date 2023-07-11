@@ -164,7 +164,7 @@ class RCILRunner(BaseRunner):
                     distillation_feats=distillation_feats,
                     num_known_classes_list=self.runner_cfg['segmentor_cfg']['num_known_classes_list'],
                     dataset_type=self.runner_cfg['dataset_cfg']['type'],
-                    **losses_cfgs['distillation']
+                    **losses_cfgs['distillation_rcil']
                 )
             # --calculate mib distillation losses
             kd_total_loss, kd_losses_log_dict = 0, {}

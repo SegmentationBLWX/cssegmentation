@@ -10,8 +10,8 @@ SEGMENTOR_CFG = {
         'depth': 101,
         'outstride': 16,
         'out_indices': (0, 1, 2, 3),
-        'norm_cfg': {'type': 'InPlaceABNSync', 'activation': 'leaky_relu', 'activation_param': 1.0},
-        'act_cfg': None,
+        'norm_cfg': {'type': 'InPlaceABNSync', 'activation': 'identity'},
+        'act_cfg': {'type': 'LeakyReLU', 'negative_slope': 0.01, 'inplace': False},
         'pretrained': True,
     }, 
     'decoder_cfg': {
@@ -21,8 +21,8 @@ SEGMENTOR_CFG = {
         'out_channels': 256,
         'dilations': (1, 6, 12, 18),
         'pooling_size': 32,
-        'norm_cfg': {'type': 'InPlaceABNSync', 'activation': 'leaky_relu', 'activation_param': 1.0},
-        'act_cfg': None,
+        'norm_cfg': {'type': 'InPlaceABNSync', 'activation': 'identity'},
+        'act_cfg': {'type': 'LeakyReLU', 'negative_slope': 0.01, 'inplace': False},
     },
     'losses_cfgs': {
         'segmentation_init': {
@@ -31,7 +31,7 @@ SEGMENTOR_CFG = {
         'segmentation_cl' : {
             'loss_seg': {'MIBUnbiasedCrossEntropyLoss': {'scale_factor': 1.0, 'reduction': 'mean', 'ignore_index': 255}}
         },
-        'distillation': {'scale_factor': 1.0, 'spp_scales': [4, 8, 12, 16, 20, 24]},
+        'distillation_rcil': {'scale_factor': 1.0, 'spp_scales': [4, 8, 12, 16, 20, 24]},
         'distillation_mib': {'scale_factor': 100, 'alpha': 1.0},
     }
 }
