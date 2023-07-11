@@ -18,6 +18,7 @@ class BasicBlockPLOP(BasicBlock):
         )
     '''forward'''
     def forward(self, x):
+        if isinstance(x, tuple): x = x[0]
         identity = x
         out = self.conv1(x)
         out = self.bn1(out)

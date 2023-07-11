@@ -10,8 +10,8 @@ SEGMENTOR_CFG = {
         'depth': 101,
         'outstride': 16,
         'out_indices': (0, 1, 2, 3),
-        'norm_cfg': {'type': 'InPlaceABNSync', 'activation': 'identity'},
-        'act_cfg': {'type': 'LeakyReLU', 'negative_slope': 0.01, 'inplace': False},
+        'norm_cfg': {'type': 'InPlaceABNSync', 'activation': 'leaky_relu', 'activation_param': 1.0},
+        'act_cfg': None,
         'pretrained': True,
     }, 
     'decoder_cfg': {
@@ -21,8 +21,8 @@ SEGMENTOR_CFG = {
         'out_channels': 256,
         'dilations': (1, 6, 12, 18),
         'pooling_size': 32,
-        'norm_cfg': {'type': 'InPlaceABNSync', 'activation': 'identity'},
-        'act_cfg': {'type': 'LeakyReLU', 'negative_slope': 0.01, 'inplace': False},
+        'norm_cfg': {'type': 'InPlaceABNSync', 'activation': 'leaky_relu', 'activation_param': 1.0},
+        'act_cfg': None,
     },
     'losses_cfgs': {
         'segmentation_init': {
