@@ -1,7 +1,7 @@
 '''
 Function:
-    Implementation of ResNetUCD
+    Implementation of ResNetCAF
 Author:
     Zhenchao Jin
 '''
-from .resnetmib import ResNetMIB as ResNetUCD
+from .resnetmib import ResNetMIB as ResNetCAF

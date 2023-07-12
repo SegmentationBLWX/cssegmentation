@@ -47,18 +47,18 @@ class RCILASPPHead(nn.Module):
         self.global_branch = nn.Sequential(
             nn.Conv2d(in_channels, feats_channels, kernel_size=1, stride=1, padding=0, bias=False),
             BuildNormalization(placeholder=feats_channels, norm_cfg=norm_cfg),
-            BuildActivation(act_cfg=act_cfg),
+            nn.LeakyReLU(0.01),
             nn.Conv2d(feats_channels, feats_channels, kernel_size=1, stride=1, padding=0, bias=False),
         )
         # output project
         self.bottleneck_conv = nn.Conv2d(feats_channels * len(dilations), out_channels, kernel_size=1, stride=1, padding=0, bias=False)
         self.bottleneck_bn = nn.Sequential(
             BuildNormalization(placeholder=out_channels, norm_cfg=norm_cfg),
-            BuildActivation(act_cfg=act_cfg),
+            nn.LeakyReLU(0.01),
         )
         # initialize parameters
-        assert norm_cfg['activation'] == 'identity'
-        self.initparams(actname2torchactname(act_cfg['type']), act_cfg.get('negative_slope'))
+        assert self.bottleneck_bn[0].activation == 'leaky_relu' and self.bottleneck_bn[0].activation_param == 1.0
+        self.initparams('leaky_relu', 0.01)
     '''initparams'''
     def initparams(self, nonlinearity, param=None):
         gain = nn.init.calculate_gain(nonlinearity, param)
@@ -77,9 +77,9 @@ class RCILASPPHead(nn.Module):
         input_size = x.shape
         # feed to parallel convolutions branch1 and branch2
         outputs_branch1 = torch.cat([conv(x) for conv in self.parallel_convs_branch1], dim=1)
-        outputs_branch1 = self.parallel_bn_branch1[0](outputs_branch1)
+        outputs_branch1 = self.parallel_bn_branch1(outputs_branch1)
         outputs_branch2 = torch.cat([conv(x) for conv in self.parallel_convs_branch2], dim=1)
-        outputs_branch2 = self.parallel_bn_branch2[0](outputs_branch2)
+        outputs_branch2 = self.parallel_bn_branch2(outputs_branch2)
         # merge
         r = torch.rand(1, outputs_branch1.shape[1], 1, 1, dtype=torch.float32)
         if not self.training: r[:, :, :, :] = 1.0
@@ -91,7 +91,7 @@ class RCILASPPHead(nn.Module):
         weight_branch2[(r < 0.66) & (r >= 0.33)] = 2.
         weight_branch2[r >= 0.66] = 1.
         outputs = outputs_branch1 * weight_branch1.type_as(outputs_branch1) * 0.5 + outputs_branch2 * weight_branch2.type_as(outputs_branch2) * 0.5
-        outputs = self.parallel_bn_branch1[1](outputs)
+        outputs = F.leaky_relu(outputs, negative_slope=0.01)
         outputs = self.bottleneck_conv(outputs)
         # feed to global branch
         global_feats = self.globalpooling(x)

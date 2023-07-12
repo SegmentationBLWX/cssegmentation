@@ -7,6 +7,7 @@ Author:
 import re
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from .bricks import BuildNormalization
 from .resnet import ResNet, BasicBlock, Bottleneck
 
@@ -27,7 +28,7 @@ class BasicBlockRCIL(BasicBlock):
         identity = x
         out = self.conv1(x)
         out = self.bn1(out)
-        out = self.relu(out)
+        out = F.leaky_relu(out, 0.01)
         out_branch1 = self.conv2(out)
         out_branch1 = self.bn2(out_branch1)
         out_branch2 = self.conv2_branch2(out)
@@ -42,7 +43,7 @@ class BasicBlockRCIL(BasicBlock):
         weight_branch2[(r < 0.66) & (r >= 0.33)] = 2.
         weight_branch2[r >= 0.66] = 1.
         out = out_branch1 * weight_branch1.type_as(out_branch1) * 0.5 + out_branch2 * weight_branch2.type_as(out_branch2) * 0.5
-        out = self.relu(out)
+        out = F.leaky_relu(out, 0.01)
         if self.downsample is not None: identity = self.downsample(x)
         out = out + identity
         distillation = out
@@ -66,7 +67,7 @@ class BottleneckRCIL(Bottleneck):
         identity = x
         out = self.conv1(x)
         out = self.bn1(out)
-        out = self.relu(out)
+        out = F.leaky_relu(out, 0.01)
         out_branch1 = self.conv2(out)
         out_branch1 = self.bn2(out_branch1)
         out_branch2 = self.conv2_branch2(out)
@@ -81,7 +82,7 @@ class BottleneckRCIL(Bottleneck):
         weight_branch2[(r < 0.66) & (r >= 0.33)] = 2.
         weight_branch2[r >= 0.66] = 1.
         out = out_branch1 * weight_branch1.type_as(out_branch1) * 0.5 + out_branch2 * weight_branch2.type_as(out_branch2) * 0.5
-        out = self.relu(out)
+        out = F.leaky_relu(out, 0.01)
         out = self.conv3(out)
         out = self.bn3(out)
         if self.downsample is not None: identity = self.downsample(x)

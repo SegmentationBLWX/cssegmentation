@@ -6,6 +6,7 @@ Author:
 '''
 import copy
 from .resnet import ResNet
+from .resnetcaf import ResNetCAF
 from .resnetilt import ResNetILT
 from .resnetmib import ResNetMIB
 from .resnetucd import ResNetUCD
