@@ -57,8 +57,10 @@ class RCILASPPHead(nn.Module):
             nn.LeakyReLU(0.01),
         )
         # initialize parameters
-        assert self.bottleneck_bn[0].activation == 'leaky_relu' and self.bottleneck_bn[0].activation_param == 1.0
-        self.initparams('leaky_relu', 0.01)
+        if hasattr(self.bottleneck_bn[0], 'activation'):
+            self.initparams(self.bottleneck_bn[0].activation, self.bottleneck_bn[0].activation_param)
+        else:
+            self.initparams(actname2torchactname(act_cfg['type']), act_cfg.get('negative_slope'))
     '''initparams'''
     def initparams(self, nonlinearity, param=None):
         gain = nn.init.calculate_gain(nonlinearity, param)
@@ -66,12 +68,12 @@ class RCILASPPHead(nn.Module):
             if isinstance(module, nn.Conv2d):
                 nn.init.xavier_normal_(module.weight.data, gain)
                 if hasattr(module, 'bias') and module.bias is not None:
-                    nn.init.constant_(m.bias, 0)
+                    nn.init.constant_(module.bias, 0)
             elif isinstance(module, nn.BatchNorm2d):
                 if hasattr(module, 'weight') and module.weight is not None:
-                    nn.init.constant_(m.weight, 1)
+                    nn.init.constant_(module.weight, 1)
                 if hasattr(module, 'bias') and module.bias is not None:
-                    nn.init.constant_(m.bias, 0)
+                    nn.init.constant_(module.bias, 0)
     '''forward'''
     def forward(self, x):
         input_size = x.shape

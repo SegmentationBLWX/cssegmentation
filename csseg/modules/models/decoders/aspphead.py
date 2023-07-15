@@ -63,12 +63,12 @@ class ASPPHead(nn.Module):
             if isinstance(module, nn.Conv2d):
                 nn.init.xavier_normal_(module.weight.data, gain)
                 if hasattr(module, 'bias') and module.bias is not None:
-                    nn.init.constant_(m.bias, 0)
+                    nn.init.constant_(module.bias, 0)
             elif isinstance(module, nn.BatchNorm2d):
                 if hasattr(module, 'weight') and module.weight is not None:
-                    nn.init.constant_(m.weight, 1)
+                    nn.init.constant_(module.weight, 1)
                 if hasattr(module, 'bias') and module.bias is not None:
-                    nn.init.constant_(m.bias, 0)
+                    nn.init.constant_(module.bias, 0)
     '''forward'''
     def forward(self, x):
         input_size = x.shape
