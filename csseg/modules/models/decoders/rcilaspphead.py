@@ -111,10 +111,11 @@ class RCILASPPHead(nn.Module):
             global_feats = x.view(x.size(0), x.size(1), -1).mean(dim=-1)
             global_feats = global_feats.view(x.size(0), x.size(1), 1, 1)
         else:
+            pooling_size = (min(self.pooling_size[0], x.shape[2]), min(self.pooling_size[1], x.shape[3]))
             padding = (
-                (self.pooling_size[1] - 1) // 2, (self.pooling_size[1] - 1) // 2 if self.pooling_size[1] % 2 == 1 else (self.pooling_size[1] - 1) // 2 + 1,
-                (self.pooling_size[0] - 1) // 2, (self.pooling_size[0] - 1) // 2 if self.pooling_size[0] % 2 == 1 else (self.pooling_size[0] - 1) // 2 + 1,
+                (pooling_size[1] - 1) // 2, (pooling_size[1] - 1) // 2 if pooling_size[1] % 2 == 1 else (pooling_size[1] - 1) // 2 + 1,
+                (pooling_size[0] - 1) // 2, (pooling_size[0] - 1) // 2 if pooling_size[0] % 2 == 1 else (pooling_size[0] - 1) // 2 + 1,
             )
-            global_feats = F.avg_pool2d(x, self.pooling_size, stride=1)
+            global_feats = F.avg_pool2d(x, pooling_size, stride=1)
             global_feats = F.pad(global_feats, pad=padding, mode='replicate')
         return global_feats
