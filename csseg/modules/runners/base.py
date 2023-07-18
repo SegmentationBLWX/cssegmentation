@@ -21,8 +21,6 @@ from ..utils import Logger, touchdir, loadckpts, saveckpts, saveaspickle, symlin
 '''BaseRunner'''
 class BaseRunner():
     def __init__(self, mode, cmd_args, runner_cfg):
-        # set random seed
-        setrandomseed(runner_cfg['random_seed'])
         # assert
         assert mode in ['TRAIN', 'TEST']
         # set attributes
@@ -45,11 +43,13 @@ class BaseRunner():
         # build logger handle
         self.logger_handle = Logger(logfilepath=runner_cfg['logfilepath'])
         # build datasets
+        setrandomseed(runner_cfg['random_seed'])
         dataset_cfg = runner_cfg['dataset_cfg']
         train_set = BuildDataset(mode='TRAIN', task_name=runner_cfg['task_name'], task_id=runner_cfg['task_id'], dataset_cfg=dataset_cfg) if mode == 'TRAIN' else None
         test_set = BuildDataset(mode='TEST', task_name=runner_cfg['task_name'], task_id=runner_cfg['task_id'], dataset_cfg=dataset_cfg)
         assert (runner_cfg['num_total_classes'] == train_set.num_classes if mode == 'TRAIN' else True)
         assert runner_cfg['num_total_classes'] == test_set.num_classes
+        random.seed(runner_cfg['random_seed'])
         # build dataloaders
         dataloader_cfg = runner_cfg['dataloader_cfg']
         total_bs_for_auto_check = dataloader_cfg.pop('total_bs_for_auto_check')

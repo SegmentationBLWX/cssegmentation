@@ -33,9 +33,13 @@ class Trainer():
     '''start'''
     def start(self):
         # initialize
+        assert torch.cuda.is_available(), 'cuda is not available'
         cmd_args, runner_cfg = self.cmd_args, self.cfg.RUNNER_CFG
         dist.init_process_group(backend=runner_cfg['parallel_cfg']['backend'], init_method=runner_cfg['parallel_cfg']['init_method'])
         torch.cuda.set_device(cmd_args.local_rank)
+        torch.backends.cudnn.allow_tf32 = False
+        torch.backends.cuda.matmul.allow_tf32 = False
+        torch.backends.cudnn.benchmark = runner_cfg['benchmark']
         # iter tasks
         for task_id in range(cmd_args.starttaskid, runner_cfg['num_tasks']):
             runner_cfg_task = copy.deepcopy(runner_cfg)

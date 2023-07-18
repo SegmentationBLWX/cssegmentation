@@ -43,6 +43,7 @@ RUNNER_CFG = {
     'task_id': -1,
     'num_tasks': -1,
     'work_dir': '',
+    'benchmark': True,
     'save_interval_epochs': 10,
     'eval_interval_epochs': 10,
     'log_interval_iterations': 10,
