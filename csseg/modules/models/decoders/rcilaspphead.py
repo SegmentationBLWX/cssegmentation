@@ -7,13 +7,16 @@ Author:
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..encoders import BuildActivation, BuildNormalization, actname2torchactname
+from ..encoders import BuildNormalization
 
 
 '''RCILASPPHead'''
 class RCILASPPHead(nn.Module):
-    def __init__(self, in_channels, feats_channels, out_channels, dilations, pooling_size=32, norm_cfg=None, act_cfg=None):
+    def __init__(self, in_channels, feats_channels, out_channels, dilations, pooling_size=32, norm_cfg=None):
         super(RCILASPPHead, self).__init__()
+        # assert
+        assert norm_cfg['type'] in ['ABN', 'InPlaceABN', 'InPlaceABNSync']
+        assert self.bottleneck_bn.activation_param == 1.0
         # set attributes
         self.in_channels = in_channels
         self.feats_channels = feats_channels
@@ -24,25 +27,15 @@ class RCILASPPHead(nn.Module):
         self.parallel_convs_branch2 = nn.ModuleList()
         for idx, dilation in enumerate(dilations):
             if dilation == 1:
-                conv_cfg = {
-                    'in_channels': in_channels, 'out_channels': feats_channels, 'kernel_size': 1, 
-                    'stride': 1, 'padding': 0, 'dilation': dilation, 'bias': False
-                }
+                conv_branch1 = nn.Conv2d(in_channels, feats_channels, kernel_size=1, stride=1, padding=0, dilation=dilation, bias=False)
+                conv_branch2 = nn.Conv2d(in_channels, feats_channels, kernel_size=1, stride=1, padding=0, dilation=dilation, bias=False)
             else:
-                conv_cfg = {
-                    'in_channels': in_channels, 'out_channels': feats_channels, 'kernel_size': 3, 
-                    'stride': 1, 'padding': dilation, 'dilation': dilation, 'bias': False
-                }
-            self.parallel_convs_branch1.append(nn.Conv2d(**conv_cfg))
-            self.parallel_convs_branch2.append(nn.Conv2d(**conv_cfg))
-        self.parallel_bn_branch1 = nn.Sequential(
-            BuildNormalization(placeholder=feats_channels * len(dilations), norm_cfg=norm_cfg),
-            BuildActivation(act_cfg=act_cfg),
-        )
-        self.parallel_bn_branch2 = nn.Sequential(
-            BuildNormalization(placeholder=feats_channels * len(dilations), norm_cfg=norm_cfg),
-            BuildActivation(act_cfg=act_cfg),
-        )
+                conv_branch1 = nn.Conv2d(in_channels, feats_channels, kernel_size=3, stride=1, padding=dilation, dilation=dilation, bias=False)
+                conv_branch2 = nn.Conv2d(in_channels, feats_channels, kernel_size=3, stride=1, padding=dilation, dilation=dilation, bias=False)
+            self.parallel_convs_branch1.append(conv_branch1)
+            self.parallel_convs_branch2.append(conv_branch2)
+        self.parallel_bn_branch1 = BuildNormalization(placeholder=feats_channels * len(dilations), norm_cfg=norm_cfg)
+        self.parallel_bn_branch2 = BuildNormalization(placeholder=feats_channels * len(dilations), norm_cfg=norm_cfg)
         # global branch
         self.global_branch = nn.Sequential(
             nn.Conv2d(in_channels, feats_channels, kernel_size=1, stride=1, padding=0, bias=False),
@@ -52,15 +45,9 @@ class RCILASPPHead(nn.Module):
         )
         # output project
         self.bottleneck_conv = nn.Conv2d(feats_channels * len(dilations), out_channels, kernel_size=1, stride=1, padding=0, bias=False)
-        self.bottleneck_bn = nn.Sequential(
-            BuildNormalization(placeholder=out_channels, norm_cfg=norm_cfg),
-            nn.LeakyReLU(0.01),
-        )
+        self.bottleneck_bn = BuildNormalization(placeholder=out_channels, norm_cfg=norm_cfg)
         # initialize parameters
-        if hasattr(self.bottleneck_bn[0], 'activation'):
-            self.initparams(self.bottleneck_bn[0].activation, self.bottleneck_bn[0].activation_param)
-        else:
-            self.initparams(actname2torchactname(act_cfg['type']), act_cfg.get('negative_slope'))
+        self.initparams(self.bottleneck_bn.activation, self.bottleneck_bn.activation_param)
     '''initparams'''
     def initparams(self, nonlinearity, param=None):
         gain = nn.init.calculate_gain(nonlinearity, param)
@@ -103,6 +90,7 @@ class RCILASPPHead(nn.Module):
         # shortcut
         outputs = outputs + global_feats
         outputs = self.bottleneck_bn(outputs)
+        outputs = F.leaky_relu(outputs, negative_slope=0.01)
         # return
         return outputs
     '''globalpooling'''

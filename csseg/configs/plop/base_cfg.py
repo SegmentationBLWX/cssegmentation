@@ -15,14 +15,13 @@ SEGMENTOR_CFG = {
         'pretrained': True,
     }, 
     'decoder_cfg': {
-        'type': 'ASPPHead',
+        'type': 'BASECLASPPHead',
         'in_channels': 2048,
         'feats_channels': 256,
         'out_channels': 256,
         'dilations': (1, 6, 12, 18),
         'pooling_size': 32,
         'norm_cfg': {'type': 'InPlaceABNSync', 'activation': 'leaky_relu', 'activation_param': 0.01},
-        'act_cfg': None,
     },
     'losses_cfgs': {
         'segmentation_init': {
