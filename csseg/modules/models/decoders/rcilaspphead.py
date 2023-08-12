@@ -63,7 +63,6 @@ class RCILASPPHead(nn.Module):
                     nn.init.constant_(module.bias, 0)
     '''forward'''
     def forward(self, x):
-        input_size = x.shape
         # feed to parallel convolutions branch1 and branch2
         outputs_branch1 = torch.cat([conv(x) for conv in self.parallel_convs_branch1], dim=1)
         outputs_branch1 = self.parallel_bn_branch1(outputs_branch1)

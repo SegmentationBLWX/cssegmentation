@@ -1,6 +1,6 @@
 '''
 Function:
-    Implementation of BASECLASPPHead
+    Implementation of MIBASPPHead
 Author:
     Zhenchao Jin
 '''
@@ -10,10 +10,10 @@ import torch.nn.functional as F
 from ..encoders import BuildNormalization
 
 
-'''BASECLASPPHead'''
-class BASECLASPPHead(nn.Module):
+'''MIBASPPHead'''
+class MIBASPPHead(nn.Module):
     def __init__(self, in_channels, feats_channels, out_channels, dilations, pooling_size=32, norm_cfg=None):
-        super(BASECLASPPHead, self).__init__()
+        super(MIBASPPHead, self).__init__()
         # assert
         assert norm_cfg['type'] in ['ABN', 'InPlaceABN', 'InPlaceABNSync']
         # set attributes

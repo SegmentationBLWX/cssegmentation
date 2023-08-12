@@ -6,13 +6,9 @@ Author:
 '''
 import copy
 from .resnet import ResNet
-from .resnetcaf import ResNetCAF
 from .resnetilt import ResNetILT
-from .resnetmib import ResNetMIB
-from .resnetucd import ResNetUCD
-from .resnetrcil import ResNetRCIL
 from .resnetplop import ResNetPLOP
-from .resnetreminder import ResNetREMINDER
+from .resnetrcil import ResNetRCIL
 
 
 '''BuildEncoder'''
@@ -20,8 +16,7 @@ def BuildEncoder(encoder_cfg):
     encoder_cfg = copy.deepcopy(encoder_cfg)
     # supported encoders
     supported_encoders = {
-        'ResNet': ResNet, 'ResNetILT': ResNetILT, 'ResNetMIB': ResNetMIB, 'ResNetPLOP': ResNetPLOP,
-        'ResNetUCD': ResNetUCD, 'ResNetRCIL': ResNetRCIL, 'ResNetREMINDER': ResNetREMINDER,
+        'ResNet': ResNet, 'ResNetILT': ResNetILT, 'ResNetPLOP': ResNetPLOP, 'ResNetRCIL': ResNetRCIL,
     }
     # parse
     encoder_type = encoder_cfg.pop('type')
