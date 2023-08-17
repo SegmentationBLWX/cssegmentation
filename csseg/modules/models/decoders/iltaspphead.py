@@ -30,12 +30,11 @@ class ILTASPPHead(nn.Module):
                 conv = nn.Conv2d(in_channels, feats_channels, kernel_size=3, stride=1, padding=dilation, dilation=dilation, bias=False)
             self.map_convs.append(conv)
         self.map_bn = BuildNormalization(placeholder=feats_channels * len(dilations), norm_cfg=norm_cfg)
-        # global branch
+        # global branch and output project
         self.global_pooling_conv = nn.Conv2d(in_channels, feats_channels, 1, bias=False)
         self.global_pooling_bn = BuildNormalization(placeholder=feats_channels, norm_cfg=norm_cfg)
-        self.pool_red_conv = nn.Conv2d(feats_channels, out_channels, 1, bias=False)
-        # output project
         self.red_conv = nn.Conv2d(feats_channels * 4, out_channels, 1, bias=False)
+        self.pool_red_conv = nn.Conv2d(feats_channels, out_channels, 1, bias=False)
         self.red_bn = BuildNormalization(placeholder=out_channels, norm_cfg=norm_cfg)
         # initialize parameters
         self.initparams(self.red_bn.activation, self.red_bn.activation_param)
