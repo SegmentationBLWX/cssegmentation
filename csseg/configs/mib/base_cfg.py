@@ -6,7 +6,7 @@ SEGMENTOR_CFG = {
     'selected_indices': (0,), 
     'align_corners': False, 
     'encoder_cfg': {
-        'type': 'ResNetMIB',
+        'type': 'ResNetILT',
         'depth': 101,
         'outstride': 16,
         'out_indices': (3,),
