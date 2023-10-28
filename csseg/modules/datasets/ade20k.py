@@ -10,7 +10,7 @@ from .base import _BaseDataset, BaseDataset
 
 
 '''_ADE20kDataset'''
-class _ADE20kDataset(BaseDataset):
+class _ADE20kDataset(_BaseDataset):
     num_classes = 151
     classnames = [
         '__background__', 'wall', 'building, edifice', 'sky', 'floor, flooring', 'tree', 'ceiling', 'road, route', 'bed', 'windowpane, window', 'grass',
