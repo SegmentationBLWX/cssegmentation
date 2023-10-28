@@ -7,15 +7,12 @@ Author:
 import os
 import copy
 import torch
+import collections
 import torchvision
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
-from .pipelines import SegmentationEvaluator
-from .pipelines import (
-    Compose, Resize, CenterCrop, Pad, Lambda, RandomRotation, RandomHorizontalFlip, RandomVerticalFlip,
-    ToTensor, Normalize, RandomCrop, RandomResizedCrop, ColorJitter
-)
+from .pipelines import SegmentationEvaluator, Compose, BuildDataTransform, DataTransformBuilder
 
 
 '''Subset'''
@@ -73,20 +70,17 @@ class _BaseDataset(torch.utils.data.Dataset):
     '''constructtransforms'''
     @staticmethod
     def constructtransforms(transform_settings):
-        if transform_settings is None: return transform_settings
-        # supported transforms
-        supported_transforms = {
-            'Resize': Resize, 'CenterCrop': CenterCrop, 'Pad': Pad, 'Lambda': Lambda, 
-            'RandomRotation': RandomRotation, 'RandomHorizontalFlip': RandomHorizontalFlip, 
-            'RandomVerticalFlip': RandomVerticalFlip, 'ToTensor': ToTensor, 'Normalize': Normalize, 
-            'RandomCrop': RandomCrop, 'RandomResizedCrop': RandomResizedCrop, 'ColorJitter': ColorJitter,
-        }
-        # construct transforms
         transforms = []
         for transform_setting in transform_settings:
-            name, params = transform_setting
-            transforms.append(supported_transforms[name](**params))
-        # return
+            assert isinstance(transform_setting, (dict, collections.abc.Sequence))
+            if isinstance(transform_setting, dict):
+                transform_cfg = transform_setting
+            else:
+                assert len(transform_setting) == 2
+                transform_type, transform_cfg = transform_setting
+                transform_cfg['type'] = transform_type
+            transform = BuildDataTransform(transform_cfg)
+            transforms.append(transform)
         return Compose(transforms)
 
 
