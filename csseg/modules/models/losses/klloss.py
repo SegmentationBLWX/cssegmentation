@@ -4,14 +4,13 @@ Function:
 Author:
     Zhenchao Jin
 '''
-import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 
 '''KLDivLoss'''
 class KLDivLoss(nn.Module):
-    def __init__(self, log_target=None, reduction='mean', temperature=1.0, scale_factor=1.0):
+    def __init__(self, log_target=None, reduction='batchmean', temperature=1.0, scale_factor=1.0):
         super(KLDivLoss, self).__init__()
         self.reduction = reduction
         self.log_target = log_target

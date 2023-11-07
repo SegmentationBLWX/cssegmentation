@@ -1,5 +1,5 @@
 '''initialize'''
-from .losses import BuildLoss
+from .losses import BuildLoss, LossBuilder
 from .decoders import BuildDecoder, DecoderBuilder
 from .optimizers import BuildOptimizer
 from .segmentors import BuildSegmentor

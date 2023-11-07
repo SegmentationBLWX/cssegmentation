@@ -1,2 +1,2 @@
 '''initialize'''
-from .builder import BuildLoss
+from .builder import BuildLoss, LossBuilder
