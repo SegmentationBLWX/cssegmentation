@@ -10,5 +10,6 @@ from .utils import (
 )
 from .models import (
     BuildLoss, LossBuilder, BuildDecoder, DecoderBuilder, BuildOptimizer, OptimizerBuilder, BuildParamsConstructor, ParamsConstructorBuilder,
-    BuildSegmentor, BuildScheduler,  BuildEncoder, BuildActivation, BuildNormalization, NormalizationBuilder, ActivationBuilder, EncoderBuilder
+    BuildEncoder, EncoderBuilder, BuildActivation, ActivationBuilder, BuildNormalization, NormalizationBuilder, BuildScheduler, SchedulerBuilder,
+    BuildSegmentor, SegmentorBuilder
 )

@@ -17,7 +17,6 @@ class ILTSegmentor(BaseSegmentor):
         )
     '''forward'''
     def forward(self, x):
-        img_size = x.shape[2:]
         # feed to encoder
         encoder_outputs = self.encoder(x)
         # select encoder outputs

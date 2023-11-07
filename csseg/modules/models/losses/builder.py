@@ -20,3 +20,7 @@ class LossBuilder(BaseModuleBuilder):
     '''build'''
     def build(self, loss_cfg):
         return super().build(loss_cfg)
+
+
+'''BuildLoss'''
+BuildLoss = LossBuilder().build

@@ -20,7 +20,7 @@ class BaseSegmentor(nn.Module):
     def __init__(self, selected_indices=(0, 1, 2, 3), num_known_classes_list=[], align_corners=False, encoder_cfg={}, decoder_cfg={}):
         super(BaseSegmentor, self).__init__()
         # assert
-        assert isinstance(selected_indices, (numbers.Number, collections.Sequence))
+        assert isinstance(selected_indices, (numbers.Number, collections.abc.Sequence))
         # set attributes
         self.align_corners = align_corners
         self.selected_indices = selected_indices
@@ -34,7 +34,6 @@ class BaseSegmentor(nn.Module):
         ])
     '''forward'''
     def forward(self, x):
-        img_size = x.shape[2:]
         # feed to encoder
         encoder_outputs = self.encoder(x)
         # select encoder outputs
@@ -82,9 +81,3 @@ class BaseSegmentor(nn.Module):
             selected_indices = [selected_indices]
         outputs = [inputs[idx] for idx in selected_indices]
         return outputs if len(selected_indices) > 1 else outputs[0]
-    '''architectures'''
-    def architectures(self):
-        architectures = {
-            'encoder': self.encoder, 'decoder': self.decoder, 'convs_cls': self.convs_cls,
-        }
-        return architectures

@@ -17,7 +17,6 @@ class PLOPSegmentor(MIBSegmentor):
         )
     '''forward'''
     def forward(self, x):
-        img_size = x.shape[2:]
         # feed to encoder
         encoder_outputs, distillation_feats = self.encoder(x)
         # select encoder outputs
