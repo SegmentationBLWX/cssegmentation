@@ -1,36 +1,36 @@
 '''
 Function:
-    Implementation of BuildOptimizer
+    Implementation of BuildOptimizer and OptimizerBuilder
 Author:
     Zhenchao Jin
 '''
 import copy
-import torch
-from .constructors import DefaultParamsConstructor
+import torch.optim as optim
+from ...utils import BaseModuleBuilder
+from .paramsconstructor import BuildParamsConstructor
+
+
+'''OptimizerBuilder'''
+class OptimizerBuilder(BaseModuleBuilder):
+    REGISTERED_MODULES = {
+        'SGD': optim.SGD, 'Adam': optim.Adam, 'AdamW': optim.AdamW, 'Adadelta': optim.Adadelta,
+        'Adagrad': optim.Adagrad, 'Rprop': optim.Rprop, 'RMSprop': optim.RMSprop, 
+    }
+    '''build'''
+    def build(self, model, optimizer_cfg):
+        # parse config
+        optimizer_cfg = copy.deepcopy(optimizer_cfg)
+        optimizer_type = optimizer_cfg.pop('type')
+        paramwise_cfg, filter_params = optimizer_cfg.pop('paramwise_cfg', {}), optimizer_cfg.pop('filter_params', False)
+        # build params_constructor
+        params_constructor = BuildParamsConstructor(paramwise_cfg=paramwise_cfg, filter_params=filter_params, optimizer_cfg=optimizer_cfg)
+        # obtain params
+        optimizer_cfg['params'] = params_constructor(model=model)
+        # build optimizer
+        optimizer = self.REGISTERED_MODULES[optimizer_type](**optimizer_cfg)
+        # return
+        return optimizer
 
 
 '''BuildOptimizer'''
-def BuildOptimizer(model, optimizer_cfg):
-    optimizer_cfg = copy.deepcopy(optimizer_cfg)
-    params_constructor_cfg = optimizer_cfg.pop('params_constructor_cfg')
-    # supported optimizers
-    supported_optimizers = {
-        'SGD': torch.optim.SGD,
-        'Adam': torch.optim.Adam,
-        'Rprop': torch.optim.Rprop,
-        'AdamW': torch.optim.AdamW,
-        'RMSprop': torch.optim.RMSprop,
-        'Adagrad': torch.optim.Adagrad,
-        'Adadelta': torch.optim.Adadelta,
-    }
-    # parse
-    optimizer_type = optimizer_cfg.pop('type')
-    params_constructor_type = params_constructor_cfg.pop('type')
-    supported_paramsconstructors = {
-        'DefaultParamsConstructor': DefaultParamsConstructor
-    }
-    params_constructor = supported_paramsconstructors[params_constructor_type](optimizer_cfg, **params_constructor_cfg)
-    optimizer_cfg['params'] = params_constructor(model)
-    optimizer = supported_optimizers[optimizer_type](**optimizer_cfg)
-    # return
-    return optimizer
+BuildOptimizer = OptimizerBuilder().build

@@ -9,6 +9,6 @@ from .utils import (
     BaseModuleBuilder, Logger
 )
 from .models import (
-    BuildLoss, LossBuilder, BuildDecoder, DecoderBuilder, BuildOptimizer, BuildSegmentor, BuildScheduler, 
-    BuildEncoder, BuildActivation, BuildNormalization, NormalizationBuilder, ActivationBuilder, EncoderBuilder
+    BuildLoss, LossBuilder, BuildDecoder, DecoderBuilder, BuildOptimizer, OptimizerBuilder, BuildParamsConstructor, ParamsConstructorBuilder,
+    BuildSegmentor, BuildScheduler,  BuildEncoder, BuildActivation, BuildNormalization, NormalizationBuilder, ActivationBuilder, EncoderBuilder
 )

@@ -34,6 +34,16 @@ class NormalizationBuilder(BaseModuleBuilder):
         else:
             normalization = self.REGISTERED_MODULES[norm_type](placeholder, **norm_cfg)
         return normalization
+    '''isnorm'''
+    @staticmethod
+    def isnorm(module, norm_list=None):
+        if norm_list is None:
+            norm_list = (
+                nn.GroupNorm, nn.LayerNorm, nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d,
+                nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d, nn.SyncBatchNorm,
+                ABN, InPlaceABN, InPlaceABNSync,
+            )
+        return isinstance(module, norm_list)
 
 
 '''BuildNormalization'''
