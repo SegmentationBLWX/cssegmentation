@@ -4,9 +4,9 @@ Function:
 Author:
     Zhenchao Jin
 '''
-from apex.parallel import DistributedDataParallel
+import torch.nn as nn
 
 
 '''BuildDistributedModel'''
 def BuildDistributedModel(model, model_cfg):
-    return DistributedDataParallel(model, **model_cfg)
+    return nn.parallel.DistributedDataParallel(model, **model_cfg)

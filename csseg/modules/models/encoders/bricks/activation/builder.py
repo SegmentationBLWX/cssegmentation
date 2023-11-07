@@ -1,30 +1,27 @@
 '''
 Function:
-    Implementation of BuildActivation
+    Implementation of ActivationBuilder and BuildActivation
 Author:
     Zhenchao Jin
 '''
-import copy
 import torch.nn as nn
+from .....utils import BaseModuleBuilder
+
+
+'''ActivationBuilder'''
+class ActivationBuilder(BaseModuleBuilder):
+    REGISTERED_MODULES = {
+        'ReLU': nn.ReLU, 'GELU': nn.GELU, 'ReLU6': nn.ReLU6, 'PReLU': nn.PReLU, 'Sigmoid': nn.Sigmoid, 'LeakyReLU': nn.LeakyReLU,
+    }
+    for act_type in ['ELU', 'Hardshrink', 'Hardtanh', 'LogSigmoid', 'RReLU', 'SELU', 'CELU', 'SiLU', 'GLU', 
+                     'Mish', 'Softplus', 'Softshrink', 'Softsign', 'Tanh', 'Tanhshrink', 'Threshold']:
+        if hasattr(nn, act_type):
+            REGISTERED_MODULES[act_type] = getattr(nn, act_type)
+    '''build'''
+    def build(self, act_cfg):
+        if act_cfg is None: return nn.Identity()
+        return super().build(act_cfg)
 
 
 '''BuildActivation'''
-def BuildActivation(act_cfg):
-    if act_cfg is None: return nn.Identity()
-    act_cfg = copy.deepcopy(act_cfg)
-    # supported activations
-    supported_activations = {
-        'Tanh': nn.Tanh,
-        'ReLU': nn.ReLU,
-        'GELU': nn.GELU,
-        'SELU': nn.SELU,
-        'ReLU6': nn.ReLU6,
-        'PReLU': nn.PReLU,
-        'Sigmoid': nn.Sigmoid,
-        'LeakyReLU': nn.LeakyReLU,
-    }
-    # parse
-    act_type = act_cfg.pop('type')
-    act_layer = supported_activations[act_type](**act_cfg)
-    # return
-    return act_layer
+BuildActivation = ActivationBuilder().build

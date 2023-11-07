@@ -12,7 +12,7 @@ from ..utils import BaseModuleBuilder
 
 '''DatasetBuilder'''
 class DatasetBuilder(BaseModuleBuilder):
-    SUPPORTED_MODULES = {
+    REGISTERED_MODULES = {
         'VOCDataset': VOCDataset, 'ADE20kDataset': ADE20kDataset,
     }
     '''build'''

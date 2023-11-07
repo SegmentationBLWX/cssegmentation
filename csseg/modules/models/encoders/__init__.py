@@ -1,3 +1,5 @@
 '''initialize'''
-from .builder import BuildEncoder
-from .bricks import BuildActivation, BuildNormalization, actname2torchactname
+from .builder import BuildEncoder, EncoderBuilder
+from .bricks import (
+    NormalizationBuilder, BuildNormalization, ActivationBuilder, BuildActivation
+)

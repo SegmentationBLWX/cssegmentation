@@ -9,11 +9,12 @@ import re
 import torch
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
+from ...utils import loadpretrainedweights
 from .bricks import BuildActivation, BuildNormalization
 
 
-'''model urls'''
-model_urls = {
+'''PRETRAINED_WEIGHTS_TABLE'''
+PRETRAINED_WEIGHTS_TABLE = {
     'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
     'resnet34': 'https://download.pytorch.org/models/resnet34-333f7ec4.pth',
     'resnet50': 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
@@ -104,7 +105,7 @@ class ResNet(nn.Module):
         101: (Bottleneck, (3, 4, 23, 3)),
         152: (Bottleneck, (3, 8, 36, 3))
     }
-    def __init__(self, in_channels=3, base_channels=64, stem_channels=64, depth=101, outstride=16, contract_dilation=True, deep_stem=True, 
+    def __init__(self, structure_type, in_channels=3, base_channels=64, stem_channels=64, depth=101, outstride=16, contract_dilation=True, deep_stem=True, 
                  out_indices=(0, 1, 2, 3), use_avg_for_downsample=False, norm_cfg={'type': 'BatchNorm2d'}, act_cfg={'type': 'ReLU', 'inplace': True}, 
                  pretrained=True, pretrained_model_path=None, user_defined_block=None, use_inplaceabn_style=False):
         super(ResNet, self).__init__()
@@ -195,23 +196,10 @@ class ResNet(nn.Module):
         )
         self.out_channels = self.layer4[-1].out_channels
         # load pretrained model
-        if pretrained and pretrained_model_path and os.path.exists(pretrained_model_path):
-            ckpt = torch.load(pretrained_model_path, map_location='cpu')
-            if 'state_dict' in ckpt: 
-                state_dict = ckpt['state_dict']
-            else: 
-                state_dict = ckpt
-            self.load_state_dict(self.convertabnckpt(state_dict) if use_inplaceabn_style else state_dict, strict=False)
-        elif pretrained:
-            if use_inplaceabn_style:
-                key = f'resnet{depth}inplaceabn'
-            else:
-                key = f'resnet{depth}' + ('stem' if deep_stem else '')
-            ckpt = model_zoo.load_url(model_urls[key], map_location='cpu')
-            if 'state_dict' in ckpt: 
-                state_dict = ckpt['state_dict']
-            else: 
-                state_dict = ckpt
+        if pretrained:
+            state_dict = loadpretrainedweights(
+                structure_type=structure_type, pretrained_model_path=pretrained_model_path, pretrained_weights_table=PRETRAINED_WEIGHTS_TABLE
+            )
             self.load_state_dict(self.convertabnckpt(state_dict) if use_inplaceabn_style else state_dict, strict=False)
     '''makelayer'''
     def makelayer(self, block, inplanes, planes, num_blocks, stride=1, dilation=1, contract_dilation=True, use_avg_for_downsample=False, norm_cfg=None, act_cfg=None):
