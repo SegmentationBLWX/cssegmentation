@@ -8,7 +8,6 @@ import os
 import copy
 import torch
 import random
-import torch.nn as nn
 import torch.nn.functional as F
 from apex import amp
 from tqdm import tqdm
@@ -51,9 +50,12 @@ class BaseRunner():
         assert runner_cfg['num_total_classes'] == test_set.num_classes
         random.seed(runner_cfg['random_seed'])
         # build dataloaders
-        dataloader_cfg = runner_cfg['dataloader_cfg']
-        total_bs_for_auto_check = dataloader_cfg.pop('total_bs_for_auto_check')
-        assert dataloader_cfg['train']['batch_size_per_gpu'] * self.cmd_args.nproc_per_node == total_bs_for_auto_check
+        dataloader_cfg = copy.deepcopy(runner_cfg['dataloader_cfg'])
+        total_train_bs_for_auto_check = dataloader_cfg.pop('total_train_bs_for_auto_check')
+        auto_align_train_bs = dataloader_cfg.pop('auto_align_train_bs')
+        if auto_align_train_bs:
+            dataloader_cfg['train']['batch_size_per_gpu'] = total_train_bs_for_auto_check // self.cmd_args.nproc_per_node
+        assert dataloader_cfg['train']['batch_size_per_gpu'] * self.cmd_args.nproc_per_node == total_train_bs_for_auto_check
         self.train_loader = BuildDistributedDataloader(dataset=train_set, dataloader_cfg=dataloader_cfg) if mode == 'TRAIN' else None
         self.test_loader = BuildDistributedDataloader(dataset=test_set, dataloader_cfg=dataloader_cfg)
         # build segmentor
@@ -72,11 +74,13 @@ class BaseRunner():
             self.history_segmentor = None
         # build optimizer
         if mode == 'TRAIN':
-            scheduler_cfg = runner_cfg['scheduler_cfg']
-            scheduler_cfg['max_iters'] = len(self.train_loader) * scheduler_cfg['max_epochs']
-            optimizer_cfg = runner_cfg['optimizer_cfg']
+            scheduler_cfg = copy.deepcopy(runner_cfg['scheduler_cfg'])
+            optimizer_cfg = scheduler_cfg['optimizer']
             optimizer_cfg['lr'] = scheduler_cfg['lr']
             self.optimizer = BuildOptimizer(model=self.segmentor, optimizer_cfg=optimizer_cfg)
+            scheduler_cfg.update({
+                'iters_per_epoch': len(self.train_loader), 'paramwise_cfg': optimizer_cfg['paramwise_cfg']
+            })
         else:
             self.optimizer = None
         # build scheduler
@@ -113,7 +117,7 @@ class BaseRunner():
             ckpts = loadckpts(os.path.join(self.task_work_dir, 'latest.pth'))
             self.segmentor.load_state_dict(ckpts['segmentor'], strict=True)
             self.optimizer.load_state_dict(ckpts['optimizer'])
-            self.scheduler.load(state_dict=ckpts)
+            self.scheduler.setstate(state_dict=ckpts)
             amp.load_state_dict(ckpts['amp'])
             self.best_score = ckpts['best_score']
     '''start'''
@@ -184,8 +188,6 @@ class BaseRunner():
         state_dict.update({
             'best_score': self.best_score,
             'segmentor': self.segmentor.state_dict(),
-            'optimizer': self.optimizer.state_dict(),
-            'iters_per_epoch': len(self.train_loader), 
             'task_id': self.runner_cfg['task_id'],
             'amp': amp.state_dict(),
         })

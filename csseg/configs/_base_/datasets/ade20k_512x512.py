@@ -9,7 +9,7 @@ DATASET_CFG_ADE20K_512x512 = {
     'overlap': True, 
     'masking_value': 0,
     'train': {
-        'set': 'trainaug',
+        'set': 'train',
         'transforms': [
             ('RandomResizedCrop', {'output_size': 512, 'scale': (0.5, 2.0)}),
             ('RandomHorizontalFlip', {}),

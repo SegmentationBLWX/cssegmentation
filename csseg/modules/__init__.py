@@ -1,5 +1,5 @@
 '''initialize'''
-from .runners import BuildRunner
+from .runners import BuildRunner, RunnerBuilder
 from .parallel import BuildDistributedDataloader, BuildDistributedModel
 from .datasets import (
     SegmentationEvaluator, BuildDataTransform, DataTransformBuilder, BuildDataset, DatasetBuilder
