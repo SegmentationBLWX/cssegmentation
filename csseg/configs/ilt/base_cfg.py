@@ -22,6 +22,7 @@ SEGMENTOR_CFG = {
         'dilations': (1, 6, 12, 18),
         'pooling_size': 32,
         'norm_cfg': {'type': 'InPlaceABNSync', 'activation': 'leaky_relu', 'activation_param': 0.01},
+        'act_cfg': None,
     },
     'losses_cfgs': {
         'segmentation_init': {

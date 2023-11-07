@@ -1,2 +1,2 @@
 '''initialize'''
-from .builder import BuildDecoder
+from .builder import BuildDecoder, DecoderBuilder

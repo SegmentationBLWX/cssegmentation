@@ -1,66 +1,57 @@
 '''
 Function:
-    Implementation of MIBASPPHead
+    Implementation of ASPPHead
 Author:
     Zhenchao Jin
 '''
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..encoders import BuildNormalization
+from ..encoders import BuildNormalization, BuildActivation
 
 
-'''MIBASPPHead'''
-class MIBASPPHead(nn.Module):
-    def __init__(self, in_channels, feats_channels, out_channels, dilations, pooling_size=32, norm_cfg=None):
-        super(MIBASPPHead, self).__init__()
-        # assert
-        assert norm_cfg['type'] in ['ABN', 'InPlaceABN', 'InPlaceABNSync']
+'''ASPPHead'''
+class ASPPHead(nn.Module):
+    def __init__(self, in_channels, feats_channels, out_channels, dilations, pooling_size=32, norm_cfg=None, act_cfg=None):
+        super(ASPPHead, self).__init__()
         # set attributes
         self.in_channels = in_channels
         self.feats_channels = feats_channels
         self.out_channels = out_channels
+        self.dilations = dilations
         self.pooling_size = (pooling_size, pooling_size) if isinstance(pooling_size, int) else pooling_size
+        self.norm_cfg = norm_cfg
+        self.act_cfg = act_cfg
         # parallel convolutions
         self.parallel_convs = nn.ModuleList()
-        for idx, dilation in enumerate(dilations):
+        for _, dilation in enumerate(dilations):
             if dilation == 1:
                 conv = nn.Conv2d(in_channels, feats_channels, kernel_size=1, stride=1, padding=0, dilation=dilation, bias=False)
             else:
                 conv = nn.Conv2d(in_channels, feats_channels, kernel_size=3, stride=1, padding=dilation, dilation=dilation, bias=False)
             self.parallel_convs.append(conv)
         self.parallel_bn = BuildNormalization(placeholder=feats_channels * len(dilations), norm_cfg=norm_cfg)
+        self.parallel_act = BuildActivation(act_cfg)
         # global branch
         self.global_branch = nn.Sequential(
             nn.Conv2d(in_channels, feats_channels, kernel_size=1, stride=1, padding=0, bias=False),
             BuildNormalization(placeholder=feats_channels, norm_cfg=norm_cfg),
+            BuildActivation(act_cfg),
             nn.Conv2d(feats_channels, feats_channels, kernel_size=1, stride=1, padding=0, bias=False),
         )
         # output project
-        self.bottleneck_conv = nn.Conv2d(feats_channels * len(dilations), out_channels, kernel_size=1, stride=1, padding=0, bias=False)
-        self.bottleneck_bn = BuildNormalization(placeholder=out_channels, norm_cfg=norm_cfg)
-        # initialize parameters
-        self.initparams(self.bottleneck_bn.activation, self.bottleneck_bn.activation_param)
-    '''initparams'''
-    def initparams(self, nonlinearity, param=None):
-        gain = nn.init.calculate_gain(nonlinearity, param)
-        for module in self.modules():
-            if isinstance(module, nn.Conv2d):
-                nn.init.xavier_normal_(module.weight.data, gain)
-                if hasattr(module, 'bias') and module.bias is not None:
-                    nn.init.constant_(module.bias, 0)
-            elif isinstance(module, nn.BatchNorm2d):
-                if hasattr(module, 'weight') and module.weight is not None:
-                    nn.init.constant_(module.weight, 1)
-                if hasattr(module, 'bias') and module.bias is not None:
-                    nn.init.constant_(module.bias, 0)
+        self.out_project = nn.Sequential(
+            nn.Conv2d(feats_channels * len(dilations), out_channels, kernel_size=1, stride=1, padding=0, bias=False),
+            BuildNormalization(placeholder=out_channels, norm_cfg=norm_cfg),
+            BuildActivation(act_cfg),
+        )
     '''forward'''
     def forward(self, x):
-        input_size = x.shape
         # feed to parallel convolutions
         outputs = torch.cat([conv(x) for conv in self.parallel_convs], dim=1)
         outputs = self.parallel_bn(outputs)
-        outputs = self.bottleneck_conv(outputs)
+        outputs = self.parallel_act(outputs)
+        outputs = self.out_project[0](outputs)
         # feed to global branch
         global_feats = self.globalpooling(x)
         global_feats = self.global_branch(global_feats)
@@ -68,7 +59,7 @@ class MIBASPPHead(nn.Module):
             global_feats = global_feats.repeat(1, 1, x.size(2), x.size(3))
         # shortcut
         outputs = outputs + global_feats
-        outputs = self.bottleneck_bn(outputs)
+        outputs = self.out_project[1:](outputs)
         # return
         return outputs
     '''globalpooling'''

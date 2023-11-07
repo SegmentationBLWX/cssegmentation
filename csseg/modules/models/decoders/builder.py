@@ -4,21 +4,20 @@ Function:
 Author:
     Zhenchao Jin
 '''
-import copy
-from .iltaspphead import ILTASPPHead
-from .mibaspphead import MIBASPPHead
+from .aspphead import ASPPHead
 from .rcilaspphead import RCILASPPHead
+from ...utils import BaseModuleBuilder
+
+
+'''DecoderBuilder'''
+class DecoderBuilder(BaseModuleBuilder):
+    REGISTERED_MODULES = {
+        'ASPPHead': ASPPHead, 'RCILASPPHead': RCILASPPHead, 
+    }
+    '''build'''
+    def build(self, decoder_cfg):
+        return super().build(decoder_cfg)
 
 
 '''BuildDecoder'''
-def BuildDecoder(decoder_cfg):
-    decoder_cfg = copy.deepcopy(decoder_cfg)
-    # supported decoders
-    supported_decoders = {
-        'ILTASPPHead': ILTASPPHead, 'MIBASPPHead': MIBASPPHead, 'RCILASPPHead': RCILASPPHead, 
-    }
-    # parse
-    decoder_type = decoder_cfg.pop('type')
-    decoder = supported_decoders[decoder_type](**decoder_cfg)
-    # return
-    return decoder
+BuildDecoder = DecoderBuilder().build
