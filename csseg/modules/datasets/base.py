@@ -70,6 +70,7 @@ class _BaseDataset(torch.utils.data.Dataset):
     '''constructtransforms'''
     @staticmethod
     def constructtransforms(transform_settings):
+        if transform_settings is None: return None
         transforms = []
         for transform_setting in transform_settings:
             assert isinstance(transform_setting, (dict, collections.abc.Sequence))
