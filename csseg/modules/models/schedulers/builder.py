@@ -18,7 +18,7 @@ class SchedulerBuilder(BaseModuleBuilder):
     def build(self, optimizer, scheduler_cfg):
         scheduler_cfg = copy.deepcopy(scheduler_cfg)
         scheduler_type = scheduler_cfg.pop('type')
-        scheduler_cfg.pop('optimizer')
+        scheduler_cfg.pop('optimizer_cfg')
         scheduler = self.REGISTERED_MODULES[scheduler_type](optimizer=optimizer, **scheduler_cfg)
         return scheduler
 

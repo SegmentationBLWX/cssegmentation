@@ -15,7 +15,7 @@ SEGMENTOR_CFG = {
         'pretrained': True,
     }, 
     'decoder_cfg': {
-        'type': 'ILTASPPHead',
+        'type': 'ASPPHead',
         'in_channels': 2048,
         'feats_channels': 256,
         'out_channels': 256,

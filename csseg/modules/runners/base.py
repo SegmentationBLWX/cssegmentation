@@ -75,7 +75,7 @@ class BaseRunner():
         # build optimizer
         if mode == 'TRAIN':
             scheduler_cfg = copy.deepcopy(runner_cfg['scheduler_cfg'])
-            optimizer_cfg = scheduler_cfg['optimizer']
+            optimizer_cfg = scheduler_cfg['optimizer_cfg']
             optimizer_cfg['lr'] = scheduler_cfg['lr']
             self.optimizer = BuildOptimizer(model=self.segmentor, optimizer_cfg=optimizer_cfg)
             scheduler_cfg.update({
@@ -200,7 +200,10 @@ class BaseRunner():
             else:
                 losses_log_dict[key] = [value]
         losses_log_dict.update({
-            'epoch': self.scheduler.cur_epoch, 'iteration': self.scheduler.cur_iter, 'lr': self.scheduler.cur_lr
+            'algorithm': self.runner_cfg['algorithm'], 'task_name': self.runner_cfg['task_name'], 'task_id': self.runner_cfg['task_id'], 
+            'encoder': self.runner_cfg['segmentor_cfg']['encoder_cfg']['type'], 'decoder': self.runner_cfg['segmentor_cfg']['decoder_cfg']['type'],
+            'cur_epoch': self.scheduler.cur_epoch, 'max_epochs': self.scheduler.max_epochs, 'cur_iter': self.scheduler.cur_iter, 'max_iters': self.scheduler.max_iters,
+            'lr': self.scheduler.cur_lr,
         })
         if (self.scheduler.cur_iter % self.log_interval_iterations == 0) and (self.cmd_args.local_rank == 0):
             for key, value in losses_log_dict.copy().items():
