@@ -24,8 +24,10 @@ class ILTRunner(BaseRunner):
         # initialize
         losses_cfgs = copy.deepcopy(self.losses_cfgs)
         init_losses_log_dict = {
-            'algorithm': self.runner_cfg['algorithm'], 'task_id': self.runner_cfg['task_id'],
-            'epoch': self.scheduler.cur_epoch, 'iteration': self.scheduler.cur_iter, 'lr': self.scheduler.cur_lr
+            'algorithm': self.runner_cfg['algorithm'], 'task_name': self.runner_cfg['task_name'], 'task_id': self.runner_cfg['task_id'], 
+            'encoder': self.runner_cfg['segmentor_cfg']['encoder_cfg']['type'], 'decoder': self.runner_cfg['segmentor_cfg']['decoder_cfg']['type'],
+            'cur_epoch': self.scheduler.cur_epoch, 'max_epochs': self.scheduler.max_epochs, 'cur_iter': self.scheduler.cur_iter, 'max_iters': self.scheduler.max_iters,
+            'lr': self.scheduler.lr,
         }
         losses_log_dict = copy.deepcopy(init_losses_log_dict)
         self.segmentor.train()
