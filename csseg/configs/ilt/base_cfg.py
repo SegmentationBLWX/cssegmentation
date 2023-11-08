@@ -13,6 +13,7 @@ SEGMENTOR_CFG = {
         'norm_cfg': {'type': 'InPlaceABNSync', 'activation': 'leaky_relu', 'activation_param': 0.01},
         'act_cfg': None,
         'pretrained': True,
+        'structure_type': 'resnet101inplaceabn',
     }, 
     'decoder_cfg': {
         'type': 'ASPPHead',
