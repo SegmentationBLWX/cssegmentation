@@ -366,7 +366,7 @@ class Compose(object):
 
 '''DataTransformBuilder'''
 class DataTransformBuilder(BaseModuleBuilder):
-    SUPPORTED_MODULES = {
+    REGISTERED_MODULES = {
         'Resize': Resize, 'CenterCrop': CenterCrop, 'Pad': Pad, 'Lambda': Lambda, 'RandomRotation': RandomRotation, 
         'RandomHorizontalFlip': RandomHorizontalFlip, 'RandomVerticalFlip': RandomVerticalFlip, 'ToTensor': ToTensor,
         'Normalize': Normalize, 'RandomCrop': RandomCrop, 'RandomResizedCrop': RandomResizedCrop, 'ColorJitter': ColorJitter,
