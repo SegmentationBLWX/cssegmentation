@@ -17,7 +17,7 @@ warnings.filterwarnings('ignore')
 '''parsecmdargs'''
 def parsecmdargs():
     parser = argparse.ArgumentParser(description='CSSegmentation: An Open Source Continual Semantic Segmentation Toolbox Based on PyTorch.')
-    parser.add_argument('--local_rank', dest='local_rank', help='node rank for distributed training.', default=0, type=int)
+    parser.add_argument('--local_rank', '--local-rank', dest='local_rank', help='node rank for distributed training.', default=0, type=int)
     parser.add_argument('--nproc_per_node', dest='nproc_per_node', help='number of processes per node.', default=4, type=int)
     parser.add_argument('--cfgfilepath', dest='cfgfilepath', help='config file path you want to load.', type=str, required=True)
     parser.add_argument('--starttaskid', dest='starttaskid', help='task id you want to start from.', default=0, type=int)
@@ -44,7 +44,7 @@ class Trainer():
         for task_id in range(cmd_args.starttaskid, runner_cfg['num_tasks']):
             runner_cfg_task = copy.deepcopy(runner_cfg)
             runner_cfg_task['task_id'] = task_id
-            for key in ['segmentor_cfg', 'dataset_cfg', 'dataloader_cfg', 'optimizer_cfg', 'scheduler_cfg', 'parallel_cfg']:
+            for key in ['segmentor_cfg', 'dataset_cfg', 'dataloader_cfg', 'scheduler_cfg', 'parallel_cfg']:
                 if isinstance(runner_cfg_task[key], list):
                     assert len(runner_cfg_task[key]) == runner_cfg_task['num_tasks']
                     runner_cfg_task[key] = runner_cfg_task[key][task_id]
