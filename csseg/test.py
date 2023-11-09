@@ -21,6 +21,8 @@ def parsecmdargs():
     parser.add_argument('--cfgfilepath', dest='cfgfilepath', help='config file path you want to load.', type=str, required=True)
     parser.add_argument('--ckptspath', dest='ckptspath', help='checkpoints path you want to load.', type=str, required=True)
     cmd_args = parser.parse_args()
+    if torch.__version__.startswith('2.'):
+        cmd_args.local_rank = int(os.environ['LOCAL_RANK'])
     return cmd_args
 
 

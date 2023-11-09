@@ -4,6 +4,7 @@ Function:
 Author:
     Zhenchao Jin
 '''
+import os
 import copy
 import torch
 import warnings
@@ -22,6 +23,8 @@ def parsecmdargs():
     parser.add_argument('--cfgfilepath', dest='cfgfilepath', help='config file path you want to load.', type=str, required=True)
     parser.add_argument('--starttaskid', dest='starttaskid', help='task id you want to start from.', default=0, type=int)
     cmd_args = parser.parse_args()
+    if torch.__version__.startswith('2.'):
+        cmd_args.local_rank = int(os.environ['LOCAL_RANK'])
     return cmd_args
 
 
