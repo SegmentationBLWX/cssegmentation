@@ -126,7 +126,7 @@ class BaseRunner():
             self.logger_handle.info(f'Load Config From: {self.cmd_args.cfgfilepath}')
             self.logger_handle.info(f'Config Details: \n{self.runner_cfg}')
         self.beforetrainactions()
-        for cur_epoch in range(self.scheduler.cur_epoch, self.scheduler.max_epochs+1):
+        for cur_epoch in range(self.scheduler.cur_epoch+1, self.scheduler.max_epochs+1):
             if self.cmd_args.local_rank == 0:
                 self.logger_handle.info(f'Start to train {self.runner_cfg["algorithm"]} at Task {self.runner_cfg["task_id"]}, Epoch {cur_epoch}')
             self.scheduler.cur_epoch = cur_epoch
