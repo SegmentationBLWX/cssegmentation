@@ -1,5 +1,5 @@
 '''
-Funtion:
+Function:
     Implementation of BaseScheduler
 Author:
     Zhenchao Jin
@@ -28,6 +28,9 @@ class BaseScheduler():
     '''updatelr'''
     def updatelr(self):
         raise NotImplementedError('not to be implemented')
+    '''zerograd'''
+    def zerograd(self):
+        self.optimizer.zero_grad()
     '''getwarmuplr'''
     def getwarmuplr(self, cur_iter, warmup_cfg, regular_lr):
         warmup_type, warmup_ratio, warmup_iters = warmup_cfg['type'], warmup_cfg['ratio'], warmup_cfg['iters']
