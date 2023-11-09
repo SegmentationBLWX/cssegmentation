@@ -10,8 +10,8 @@ SEGMENTOR_CFG = {
         'depth': 101,
         'outstride': 16,
         'out_indices': (3,),
-        'norm_cfg': {'type': 'InPlaceABNSync', 'activation': 'leaky_relu', 'activation_param': 0.01},
-        'act_cfg': None,
+        'norm_cfg': {'type': 'SyncBatchNorm'},
+        'act_cfg': {'type': 'LeakyReLU', 'negative_slope': 0.01},
         'pretrained': True,
         'structure_type': 'resnet101inplaceabn',
     }, 
@@ -22,8 +22,8 @@ SEGMENTOR_CFG = {
         'out_channels': 256,
         'dilations': (1, 6, 12, 18),
         'pooling_size': 32,
-        'norm_cfg': {'type': 'InPlaceABNSync', 'activation': 'leaky_relu', 'activation_param': 0.01},
-        'act_cfg': None,
+        'norm_cfg': {'type': 'SyncBatchNorm'},
+        'act_cfg': {'type': 'LeakyReLU', 'negative_slope': 0.01},
     },
     'losses_cfgs': {
         'segmentation_init': {
