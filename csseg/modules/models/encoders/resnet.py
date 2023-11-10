@@ -4,11 +4,9 @@ Function:
 Author:
     Zhenchao Jin
 '''
-import os
 import re
-import torch
+import copy
 import torch.nn as nn
-import torch.utils.model_zoo as model_zoo
 from ...utils import loadpretrainedweights
 from .bricks import BuildActivation, BuildNormalization
 
@@ -205,9 +203,8 @@ class ResNet(nn.Module):
     def makelayer(self, block, inplanes, planes, num_blocks, stride=1, dilation=1, contract_dilation=True, use_avg_for_downsample=False, norm_cfg=None, act_cfg=None):
         shortcut_norm_cfg, shortcut_act_cfg = norm_cfg, act_cfg
         if self.use_inplaceabn_style:
-            assert act_cfg is None or norm_cfg['activation'] == 'identity'
-            shortcut_act_cfg = {'type': 'LeakyReLU', 'inplace': True, 'negative_slope': 0.01}
-            shortcut_norm_cfg = {'type': 'InPlaceABNSync', 'activation': 'identity'}
+            shortcut_act_cfg = copy.deepcopy(act_cfg)
+            shortcut_norm_cfg = copy.deepcopy(norm_cfg)
         downsample = None
         dilations = [dilation] * num_blocks
         if contract_dilation and dilation > 1: dilations[0] = dilation // 2
