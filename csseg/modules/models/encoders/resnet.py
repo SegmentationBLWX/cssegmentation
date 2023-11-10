@@ -105,7 +105,7 @@ class ResNet(nn.Module):
     }
     def __init__(self, structure_type, in_channels=3, base_channels=64, stem_channels=64, depth=101, outstride=16, contract_dilation=True, deep_stem=True, 
                  out_indices=(0, 1, 2, 3), use_avg_for_downsample=False, norm_cfg={'type': 'BatchNorm2d'}, act_cfg={'type': 'ReLU', 'inplace': True}, 
-                 pretrained=True, pretrained_model_path=None, user_defined_block=None, use_inplaceabn_style=False):
+                 shortcut_norm_cfg=None, shortcut_act_cfg=None, pretrained=True, pretrained_model_path=None, user_defined_block=None, use_inplaceabn_style=False):
         super(ResNet, self).__init__()
         self.inplanes = stem_channels
         self.use_inplaceabn_style = use_inplaceabn_style
@@ -155,6 +155,8 @@ class ResNet(nn.Module):
             use_avg_for_downsample=use_avg_for_downsample,
             norm_cfg=norm_cfg, 
             act_cfg=act_cfg,
+            shortcut_norm_cfg=shortcut_norm_cfg,
+            shortcut_act_cfg=shortcut_act_cfg,
         )
         self.layer2 = self.makelayer(
             block=block, 
@@ -167,6 +169,8 @@ class ResNet(nn.Module):
             use_avg_for_downsample=use_avg_for_downsample,
             norm_cfg=norm_cfg, 
             act_cfg=act_cfg,
+            shortcut_norm_cfg=shortcut_norm_cfg,
+            shortcut_act_cfg=shortcut_act_cfg,
         )
         self.layer3 = self.makelayer(
             block=block, 
@@ -179,6 +183,8 @@ class ResNet(nn.Module):
             use_avg_for_downsample=use_avg_for_downsample,
             norm_cfg=norm_cfg, 
             act_cfg=act_cfg,
+            shortcut_norm_cfg=shortcut_norm_cfg,
+            shortcut_act_cfg=shortcut_act_cfg,
         )
         self.layer4 = self.makelayer(
             block=block, 
@@ -191,6 +197,8 @@ class ResNet(nn.Module):
             use_avg_for_downsample=use_avg_for_downsample,
             norm_cfg=norm_cfg, 
             act_cfg=act_cfg,
+            shortcut_norm_cfg=shortcut_norm_cfg,
+            shortcut_act_cfg=shortcut_act_cfg,
         )
         self.out_channels = self.layer4[-1].out_channels
         # load pretrained model
@@ -200,11 +208,10 @@ class ResNet(nn.Module):
             )
             self.load_state_dict(self.convertabnckpt(state_dict) if use_inplaceabn_style else state_dict, strict=False)
     '''makelayer'''
-    def makelayer(self, block, inplanes, planes, num_blocks, stride=1, dilation=1, contract_dilation=True, use_avg_for_downsample=False, norm_cfg=None, act_cfg=None):
-        shortcut_norm_cfg, shortcut_act_cfg = norm_cfg, act_cfg
-        if self.use_inplaceabn_style:
-            shortcut_act_cfg = copy.deepcopy(act_cfg)
-            shortcut_norm_cfg = copy.deepcopy(norm_cfg)
+    def makelayer(self, block, inplanes, planes, num_blocks, stride=1, dilation=1, contract_dilation=True, use_avg_for_downsample=False, 
+                  norm_cfg=None, act_cfg=None, shortcut_norm_cfg=None, shortcut_act_cfg=None):
+        if shortcut_act_cfg is None: shortcut_act_cfg = copy.deepcopy(act_cfg)
+        if shortcut_norm_cfg is None: shortcut_norm_cfg = copy.deepcopy(norm_cfg)
         downsample = None
         dilations = [dilation] * num_blocks
         if contract_dilation and dilation > 1: dilations[0] = dilation // 2

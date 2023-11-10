@@ -95,7 +95,6 @@ class BaseRunner():
             self.history_segmentor.register_comm_hook(state=None, hook=comm_hooks.fp16_compress_hook)
         # set fp16
         fp16_cfg = runner_cfg['fp16_cfg']
-        fp16_cfg['autocast']['dtype'] = getattr(torch, fp16_cfg['autocast']['dtype'])
         self.grad_scaler = GradScaler(**fp16_cfg['grad_scaler'])
         # load history checkpoints
         if self.history_segmentor is not None and mode == 'TRAIN':
