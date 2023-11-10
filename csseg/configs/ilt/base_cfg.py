@@ -52,6 +52,6 @@ RUNNER_CFG = {
     'logfilepath': '',
     'num_total_classes': -1,
     'random_seed': 42,
-    'fp16_cfg': {'autocast': {'precision': 'float16'}, 'grad_scaler': {}},
+    'fp16_cfg': {'autocast': {'dtype': 'float16'}, 'grad_scaler': {}},
     'segmentor_cfg': SEGMENTOR_CFG,
 }
