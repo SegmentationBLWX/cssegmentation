@@ -40,7 +40,7 @@ class ILTRunner(BaseRunner):
             # --set zero gradient
             self.scheduler.zerograd()
             # --autocast
-            with autocast(dtype=self.precision):
+            with autocast(**self.runner_cfg['fp16_cfg']['autocast']):
                 # ----feed to history_segmentor
                 if self.history_segmentor is not None:
                     with torch.no_grad():
@@ -71,7 +71,7 @@ class ILTRunner(BaseRunner):
                 loss_total = kd_total_loss + seg_total_loss
             # --perform back propagation
             self.grad_scaler.scale(loss_total).backward()
-            self.scheduler.step()
+            self.scheduler.step(self.grad_scaler)
             # --logging training loss info
             seg_losses_log_dict.update(kd_losses_log_dict)
             seg_losses_log_dict.pop('loss_total')

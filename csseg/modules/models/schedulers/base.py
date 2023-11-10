@@ -23,8 +23,13 @@ class BaseScheduler():
         self.cur_epoch = 0
         self.cur_iter = 0
     '''step'''
-    def step(self):
-        raise NotImplementedError('not to be implemented')
+    def step(self, grad_scaler):
+        if self.clipgrad_cfg is not None:
+            for param_group in self.optimizer.param_groups:
+                self.clipgradients(params=param_group['params'], **self.clipgrad_cfg)
+        grad_scaler.step(self.optimizer)
+        grad_scaler.update()
+        self.cur_iter += 1
     '''updatelr'''
     def updatelr(self):
         raise NotImplementedError('not to be implemented')

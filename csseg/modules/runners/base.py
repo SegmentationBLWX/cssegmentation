@@ -95,7 +95,7 @@ class BaseRunner():
             self.history_segmentor.register_comm_hook(state=None, hook=comm_hooks.fp16_compress_hook)
         # set fp16
         fp16_cfg = runner_cfg['fp16_cfg']
-        self.precision = getattr(torch, fp16_cfg['precision'])
+        fp16_cfg['autocast']['precision'] = getattr(torch, fp16_cfg['autocast']['precision'])
         self.grad_scaler = GradScaler(**fp16_cfg['grad_scaler'])
         # load history checkpoints
         if self.history_segmentor is not None and mode == 'TRAIN':
@@ -115,6 +115,7 @@ class BaseRunner():
             ckpts = loadckpts(os.path.join(self.task_work_dir, 'latest.pth'))
             self.segmentor.load_state_dict(ckpts['segmentor'], strict=True)
             self.optimizer.load_state_dict(ckpts['optimizer'])
+            self.grad_scaler.load_state_dict(ckpts['grad_scaler'])
             self.scheduler.setstate(state_dict=ckpts)
             self.best_score = ckpts['best_score']
     '''start'''
@@ -186,6 +187,7 @@ class BaseRunner():
             'best_score': self.best_score,
             'segmentor': self.segmentor.state_dict(),
             'task_id': self.runner_cfg['task_id'],
+            'grad_scaler': self.grad_scaler.state_dict(),
         })
         return state_dict
     '''loggingtraininginfo'''
