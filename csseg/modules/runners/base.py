@@ -9,11 +9,12 @@ import copy
 import torch
 import random
 import torch.nn.functional as F
-from apex import amp
 from tqdm import tqdm
+from torch.cuda.amp import GradScaler
 from ..datasets import BuildDataset, SegmentationEvaluator
 from ..models import BuildSegmentor, BuildOptimizer, BuildScheduler
 from ..parallel import BuildDistributedDataloader, BuildDistributedModel
+from torch.distributed.algorithms.ddp_comm_hooks import default as comm_hooks
 from ..utils import Logger, touchdir, loadckpts, saveckpts, saveaspickle, symlink, loadpicklefile, setrandomseed
 
 
@@ -87,18 +88,15 @@ class BaseRunner():
         self.scheduler = BuildScheduler(optimizer=self.optimizer, scheduler_cfg=scheduler_cfg) if mode == 'TRAIN' else None
         # parallel segmentor
         parallel_cfg = runner_cfg['parallel_cfg']
+        self.segmentor = BuildDistributedModel(model=self.segmentor.to(self.device), model_cfg=parallel_cfg['model_cfg'])
+        self.segmentor.register_comm_hook(state=None, hook=comm_hooks.fp16_compress_hook)
         if self.history_segmentor is None and mode == 'TRAIN':
-            self.segmentor, self.optimizer = amp.initialize(
-                self.segmentor.to(self.device), self.optimizer, opt_level=parallel_cfg['opt_level']
-            )
-        elif mode == 'TRAIN':
-            [self.segmentor, self.history_segmentor], self.optimizer = amp.initialize(
-                [self.segmentor.to(self.device), self.history_segmentor.to(self.device)], self.optimizer, opt_level=parallel_cfg['opt_level']
-            )
-            self.history_segmentor = BuildDistributedModel(model=self.history_segmentor, model_cfg={})
-        else:
-            self.segmentor = self.segmentor.to(self.device)
-        self.segmentor = BuildDistributedModel(model=self.segmentor, model_cfg={})
+            self.history_segmentor = BuildDistributedModel(model=self.history_segmentor.to(self.device), model_cfg=parallel_cfg['model_cfg'])
+            self.history_segmentor.register_comm_hook(state=None, hook=comm_hooks.fp16_compress_hook)
+        # set fp16
+        fp16_cfg = runner_cfg['fp16_cfg']
+        self.precision = getattr(torch, fp16_cfg['precision'])
+        self.grad_scaler = GradScaler(**fp16_cfg['grad_scaler'])
         # load history checkpoints
         if self.history_segmentor is not None and mode == 'TRAIN':
             history_task_work_dir = os.path.join(runner_cfg['work_dir'], f'task_{runner_cfg["task_id"] - 1}')
@@ -118,7 +116,6 @@ class BaseRunner():
             self.segmentor.load_state_dict(ckpts['segmentor'], strict=True)
             self.optimizer.load_state_dict(ckpts['optimizer'])
             self.scheduler.setstate(state_dict=ckpts)
-            amp.load_state_dict(ckpts['amp'])
             self.best_score = ckpts['best_score']
     '''start'''
     def start(self):
@@ -189,7 +186,6 @@ class BaseRunner():
             'best_score': self.best_score,
             'segmentor': self.segmentor.state_dict(),
             'task_id': self.runner_cfg['task_id'],
-            'amp': amp.state_dict(),
         })
         return state_dict
     '''loggingtraininginfo'''

@@ -8,9 +8,9 @@ import copy
 import torch
 import torch.nn.functional as F
 import torch.distributed as dist
-from apex import amp
 from .base import BaseRunner
 from ..models import BuildLoss
+from torch.cuda.amp import autocast
 
 
 '''ILTRunner'''
@@ -37,40 +37,41 @@ class ILTRunner(BaseRunner):
             # --fetch data
             images = data_meta['image'].to(self.device, dtype=torch.float32)
             seg_targets = data_meta['seg_target'].to(self.device, dtype=torch.long)
-            # --feed to history_segmentor
-            if self.history_segmentor is not None:
-                with torch.no_grad():
-                    history_outputs = self.history_segmentor(images)
-            # --forward to segmentor
-            outputs = self.segmentor(images)
-            # --calculate segmentation losses
-            seg_losses_cfgs = copy.deepcopy(losses_cfgs['segmentation_cl']) if self.history_segmentor is not None else copy.deepcopy(losses_cfgs['segmentation_init'])
-            seg_total_loss, seg_losses_log_dict = self.segmentor.module.calculateseglosses(
-                seg_logits=outputs['seg_logits'], 
-                seg_targets=seg_targets, 
-                losses_cfgs=seg_losses_cfgs,
-            )
-            # --calculate distillation losses
-            kd_total_loss, kd_losses_log_dict = 0, {}
-            if self.history_segmentor is not None:
-                kd_loss_logits, kd_losses_log_dict = self.featuresdistillation(
-                    history_distillation_feats=F.interpolate(history_outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners), 
-                    distillation_feats=F.interpolate(outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners),
-                    **losses_cfgs['distillation_logits']
-                )
-                kd_loss_feats = BuildLoss(losses_cfgs['distillation_features'])(prediction=outputs['distillation_feats'], target=history_outputs['distillation_feats'])
-                value = kd_loss_feats.data.clone()
-                dist.all_reduce(value.div_(dist.get_world_size()))
-                kd_losses_log_dict['kd_loss_feats'] = value.item()
-                kd_total_loss = kd_loss_logits + kd_loss_feats
-            # --merge two losses
-            loss_total = kd_total_loss + seg_total_loss
-            # --perform back propagation
-            with amp.scale_loss(loss_total, self.optimizer) as scaled_loss_total:
-                scaled_loss_total.backward()
-            self.scheduler.step()
             # --set zero gradient
             self.scheduler.zerograd()
+            # --autocast
+            with autocast(dtype=self.precision):
+                # ----feed to history_segmentor
+                if self.history_segmentor is not None:
+                    with torch.no_grad():
+                        history_outputs = self.history_segmentor(images)
+                # ----forward to segmentor
+                outputs = self.segmentor(images)
+                # ----calculate segmentation losses
+                seg_losses_cfgs = copy.deepcopy(losses_cfgs['segmentation_cl']) if self.history_segmentor is not None else copy.deepcopy(losses_cfgs['segmentation_init'])
+                seg_total_loss, seg_losses_log_dict = self.segmentor.module.calculateseglosses(
+                    seg_logits=outputs['seg_logits'], 
+                    seg_targets=seg_targets, 
+                    losses_cfgs=seg_losses_cfgs,
+                )
+                # ----calculate distillation losses
+                kd_total_loss, kd_losses_log_dict = 0, {}
+                if self.history_segmentor is not None:
+                    kd_loss_logits, kd_losses_log_dict = self.featuresdistillation(
+                        history_distillation_feats=F.interpolate(history_outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners), 
+                        distillation_feats=F.interpolate(outputs['seg_logits'], size=images.shape[2:], mode="bilinear", align_corners=self.segmentor.module.align_corners),
+                        **losses_cfgs['distillation_logits']
+                    )
+                    kd_loss_feats = BuildLoss(losses_cfgs['distillation_features'])(prediction=outputs['distillation_feats'], target=history_outputs['distillation_feats'])
+                    value = kd_loss_feats.data.clone()
+                    dist.all_reduce(value.div_(dist.get_world_size()))
+                    kd_losses_log_dict['kd_loss_feats'] = value.item()
+                    kd_total_loss = kd_loss_logits + kd_loss_feats
+                # ----merge two losses
+                loss_total = kd_total_loss + seg_total_loss
+            # --perform back propagation
+            self.grad_scaler.scale(loss_total).backward()
+            self.scheduler.step()
             # --logging training loss info
             seg_losses_log_dict.update(kd_losses_log_dict)
             seg_losses_log_dict.pop('loss_total')
