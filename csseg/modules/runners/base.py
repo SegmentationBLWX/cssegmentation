@@ -90,7 +90,7 @@ class BaseRunner():
         parallel_cfg = runner_cfg['parallel_cfg']
         self.segmentor = BuildDistributedModel(model=self.segmentor.to(self.device), model_cfg=parallel_cfg['model_cfg'])
         self.segmentor.register_comm_hook(state=None, hook=comm_hooks.fp16_compress_hook)
-        if self.history_segmentor is None and mode == 'TRAIN':
+        if self.history_segmentor is not None and mode == 'TRAIN':
             self.history_segmentor = BuildDistributedModel(model=self.history_segmentor.to(self.device), model_cfg=parallel_cfg['model_cfg'])
             self.history_segmentor.register_comm_hook(state=None, hook=comm_hooks.fp16_compress_hook)
         # set fp16

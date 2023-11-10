@@ -1,4 +1,1 @@
-torch
-torchvision
 inplace-abn
-apex

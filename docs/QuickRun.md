@@ -19,13 +19,13 @@ where "${NGPUS}" means the number of GPUS you want to use and "${CFGFILEPATH}" d
 For example, you can train a segmentor on a single machine with the following commands,
 
 ```sh
-bash scripts/distrain.sh 4 ssseg/configs/annnet/annnet_resnet50os16_ade20k.py
+bash scripts/distrain.sh 4 csseg/configs/annnet/annnet_resnet50os16_ade20k.py
 ```
 
 If you want to resume from the checkpoints, you can run as follows,
 
 ```sh
-bash scripts/distrain.sh 4 ssseg/configs/annnet/annnet_resnet50os16_ade20k.py --ckptspath annnet_resnet50os16_ade20k/epoch_44.pth
+bash scripts/distrain.sh 4 csseg/configs/annnet/annnet_resnet50os16_ade20k.py --ckptspath annnet_resnet50os16_ade20k/epoch_44.pth
 ```
 
 #### Train with multiple machines
@@ -44,7 +44,7 @@ bash scripts/slurmtrain.sh ${PARTITION} ${JOBNAME} ${NGPUS} ${CFGFILEPATH} [opti
 Here is an example of using 16 GPUs to train PSPNet on the dev partition,
 
 ```sh
-bash scripts/slurmtrain.sh dev pspnet 16 ssseg/configs/pspnet/pspnet_resnet101os8_ade20k.py
+bash scripts/slurmtrain.sh dev pspnet 16 csseg/configs/pspnet/pspnet_resnet101os8_ade20k.py
 ```
 
 
@@ -63,7 +63,7 @@ bash scripts/distest.sh ${NGPUS} ${CFGFILEPATH} ${ckptspath} [optional arguments
 For example, you can test a segmentor on a single machine with the following commands,
 
 ```sh
-bash scripts/distest.sh 4 ssseg/configs/annnet/annnet_resnet50os16_ade20k.py annnet_resnet50os16_ade20k/epoch_130.pth
+bash scripts/distest.sh 4 csseg/configs/annnet/annnet_resnet50os16_ade20k.py annnet_resnet50os16_ade20k/epoch_130.pth
 ```
 
 #### Test with multiple machines
@@ -82,7 +82,7 @@ bash scripts/slurmtest.sh ${PARTITION} ${JOBNAME} ${NGPUS} ${CFGFILEPATH} ${ckpt
 Here is an example of using 16 GPUs to test PSPNet on the dev partition,
 
 ```sh
-bash scripts/slurmtest.sh dev pspnet 16 ssseg/configs/pspnet/pspnet_resnet101os8_ade20k.py pspnet_resnet101os8_ade20k/epoch_130.pth
+bash scripts/slurmtest.sh dev pspnet 16 csseg/configs/pspnet/pspnet_resnet101os8_ade20k.py pspnet_resnet101os8_ade20k/epoch_130.pth
 ```
 
 
@@ -97,11 +97,11 @@ bash scripts/inference.sh ${CFGFILEPATH} ${ckptspath} [optional arguments]
 For example, if you want to inference one image, the command can be,
 
 ```sh
-bash scripts/inference.sh ssseg/configs/pspnet/pspnet_resnet101os8_ade20k.py pspnet_resnet101os8_ade20k/epoch_130.pth --imagepath dog.jpg
+bash scripts/inference.sh csseg/configs/pspnet/pspnet_resnet101os8_ade20k.py pspnet_resnet101os8_ade20k/epoch_130.pth --imagepath dog.jpg
 ```
 
 If you want to inference the images in one directory, the command can be,
 
 ```sh
-bash scripts/inference.sh ssseg/configs/pspnet/pspnet_resnet101os8_ade20k.py pspnet_resnet101os8_ade20k/epoch_130.pth --imagedir dogs
+bash scripts/inference.sh csseg/configs/pspnet/pspnet_resnet101os8_ade20k.py pspnet_resnet101os8_ade20k/epoch_130.pth --imagedir dogs
 ```
