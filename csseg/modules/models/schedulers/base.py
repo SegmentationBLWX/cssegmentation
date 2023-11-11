@@ -23,12 +23,15 @@ class BaseScheduler():
         self.cur_epoch = 0
         self.cur_iter = 0
     '''step'''
-    def step(self, grad_scaler):
+    def step(self, grad_scaler=None):
         if self.clipgrad_cfg is not None:
             for param_group in self.optimizer.param_groups:
                 self.clipgradients(params=param_group['params'], **self.clipgrad_cfg)
-        grad_scaler.step(self.optimizer)
-        grad_scaler.update()
+        if grad_scaler is None:
+            self.optimizer.step()
+        else:
+            grad_scaler.step(self.optimizer)
+            grad_scaler.update()
         self.cur_iter += 1
     '''updatelr'''
     def updatelr(self):
