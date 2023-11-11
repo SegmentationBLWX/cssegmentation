@@ -53,7 +53,6 @@ RUNNER_CFG = {
     'choose_best_segmentor_by_metric': 'mean_iou',
     'logfilepath': '',
     'num_total_classes': -1,
-    'random_seed': 42,
-    'fp16_cfg': {'autocast': {}, 'grad_scaler': {}},
+    'fp16_cfg': {'type': 'pytorch', 'autocast': {}, 'grad_scaler': {}},
     'segmentor_cfg': SEGMENTOR_CFG,
 }

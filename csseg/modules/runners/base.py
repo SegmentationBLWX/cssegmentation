@@ -7,15 +7,19 @@ Author:
 import os
 import copy
 import torch
-import random
 import torch.nn.functional as F
 from tqdm import tqdm
+try:
+    from apex import amp
+except:
+    amp = None
+from torch.cuda.amp import autocast
 from torch.cuda.amp import GradScaler
 from ..datasets import BuildDataset, SegmentationEvaluator
 from ..models import BuildSegmentor, BuildOptimizer, BuildScheduler
 from ..parallel import BuildDistributedDataloader, BuildDistributedModel
 from torch.distributed.algorithms.ddp_comm_hooks import default as comm_hooks
-from ..utils import Logger, touchdir, loadckpts, saveckpts, saveaspickle, symlink, loadpicklefile, setrandomseed
+from ..utils import Logger, touchdir, loadckpts, saveckpts, saveaspickle, symlink, loadpicklefile
 
 
 '''BaseRunner'''
@@ -43,13 +47,11 @@ class BaseRunner():
         # build logger handle
         self.logger_handle = Logger(logfilepath=runner_cfg['logfilepath'])
         # build datasets
-        setrandomseed(runner_cfg['random_seed'])
         dataset_cfg = runner_cfg['dataset_cfg']
         train_set = BuildDataset(mode='TRAIN', task_name=runner_cfg['task_name'], task_id=runner_cfg['task_id'], dataset_cfg=dataset_cfg) if mode == 'TRAIN' else None
         test_set = BuildDataset(mode='TEST', task_name=runner_cfg['task_name'], task_id=runner_cfg['task_id'], dataset_cfg=dataset_cfg)
         assert (runner_cfg['num_total_classes'] == train_set.num_classes if mode == 'TRAIN' else True)
         assert runner_cfg['num_total_classes'] == test_set.num_classes
-        random.seed(runner_cfg['random_seed'])
         # build dataloaders
         dataloader_cfg = copy.deepcopy(runner_cfg['dataloader_cfg'])
         total_train_bs_for_auto_check = dataloader_cfg.pop('total_train_bs_for_auto_check')
@@ -86,16 +88,36 @@ class BaseRunner():
             self.optimizer = None
         # build scheduler
         self.scheduler = BuildScheduler(optimizer=self.optimizer, scheduler_cfg=scheduler_cfg) if mode == 'TRAIN' else None
-        # parallel segmentor
-        parallel_cfg = runner_cfg['parallel_cfg']
-        self.segmentor = BuildDistributedModel(model=self.segmentor.to(self.device), model_cfg=parallel_cfg['model_cfg'])
-        self.segmentor.register_comm_hook(state=None, hook=comm_hooks.fp16_compress_hook)
-        if self.history_segmentor is not None and mode == 'TRAIN':
-            self.history_segmentor = BuildDistributedModel(model=self.history_segmentor.to(self.device), model_cfg=parallel_cfg['model_cfg'])
-            self.history_segmentor.register_comm_hook(state=None, hook=comm_hooks.fp16_compress_hook)
         # set fp16
         fp16_cfg = runner_cfg['fp16_cfg']
-        self.grad_scaler = GradScaler(**fp16_cfg['grad_scaler'])
+        self.fp16_type = fp16_cfg['type']
+        assert self.fp16_type in ['pytorch', 'apex']
+        if self.fp16_type in ['pytorch']:
+            self.grad_scaler = GradScaler(**fp16_cfg['grad_scaler'])
+        elif self.fp16_type in ['apex']:
+            self.grad_scaler = None
+            assert amp is not None, 'apex should be installed when set fp16_type as `apex`'
+        # parallel segmentor
+        parallel_cfg = runner_cfg['parallel_cfg']
+        if self.fp16_type in ['pytorch']:
+            self.segmentor = BuildDistributedModel(model=self.segmentor.to(self.device), model_cfg=parallel_cfg['model_cfg'])
+            self.segmentor.register_comm_hook(state=None, hook=comm_hooks.fp16_compress_hook)
+            if self.history_segmentor is not None and mode == 'TRAIN':
+                self.history_segmentor = BuildDistributedModel(model=self.history_segmentor.to(self.device), model_cfg=parallel_cfg['model_cfg'])
+                self.history_segmentor.register_comm_hook(state=None, hook=comm_hooks.fp16_compress_hook)
+        elif self.fp16_type in ['apex']:
+            if self.history_segmentor is None and mode == 'TRAIN':
+                self.segmentor, self.optimizer = amp.initialize(
+                    self.segmentor.to(self.device), self.optimizer, **fp16_cfg['initialize']
+                )
+            elif mode == 'TRAIN':
+                [self.segmentor, self.history_segmentor], self.optimizer = amp.initialize(
+                    [self.segmentor.to(self.device), self.history_segmentor.to(self.device)], self.optimizer, **fp16_cfg['initialize']
+                )
+                self.history_segmentor = BuildDistributedModel(model=self.history_segmentor, model_cfg=parallel_cfg['model_cfg'])
+            else:
+                self.segmentor = self.segmentor.to(self.device)
+            self.segmentor = BuildDistributedModel(model=self.segmentor, model_cfg=parallel_cfg['model_cfg'])
         # load history checkpoints
         if self.history_segmentor is not None and mode == 'TRAIN':
             history_task_work_dir = os.path.join(runner_cfg['work_dir'], f'task_{runner_cfg["task_id"] - 1}')
@@ -114,7 +136,10 @@ class BaseRunner():
             ckpts = loadckpts(os.path.join(self.task_work_dir, 'latest.pth'))
             self.segmentor.load_state_dict(ckpts['segmentor'], strict=True)
             self.optimizer.load_state_dict(ckpts['optimizer'])
-            self.grad_scaler.load_state_dict(ckpts['grad_scaler'])
+            if self.fp16_type in ['pytorch']:
+                self.grad_scaler.load_state_dict(ckpts['grad_scaler'])
+            elif self.fp16_type in ['apex']:
+                amp.load_state_dict(ckpts['amp'])
             self.scheduler.setstate(state_dict=ckpts)
             self.best_score = ckpts['best_score']
     '''start'''
@@ -151,9 +176,41 @@ class BaseRunner():
     '''beforetrainactions'''
     def beforetrainactions(self):
         pass
+    '''call'''
+    def __call__(self):
+        raise NotImplementedError('not to be implemented')
     '''train'''
     def train(self, cur_epoch):
-        raise NotImplementedError('not to be implemented')
+        # initialize
+        init_losses_log_dict = {
+            'algorithm': self.runner_cfg['algorithm'], 'work_tag': self.cmd_args.cfgfilepath.split('/')[-1][:-3], 'task_name': self.runner_cfg['task_name'], 'task_id': self.runner_cfg['task_id'], 
+            'encoder': self.runner_cfg['segmentor_cfg']['encoder_cfg']['type'], 'decoder': self.runner_cfg['segmentor_cfg']['decoder_cfg']['type'],
+            'cur_epoch': self.scheduler.cur_epoch, 'max_epochs': self.scheduler.max_epochs, 'cur_iter': self.scheduler.cur_iter, 'max_iters': self.scheduler.max_iters,
+            'lr': self.scheduler.lr,
+        }
+        losses_log_dict = copy.deepcopy(init_losses_log_dict)
+        self.segmentor.train()
+        self.train_loader.sampler.set_epoch(cur_epoch)
+        # start to iter
+        for batch_idx, data_meta in enumerate(self.train_loader):
+            # --fetch data
+            images = data_meta['image'].to(self.device, dtype=torch.float32)
+            seg_targets = data_meta['seg_target'].to(self.device, dtype=torch.long)
+            # --set zero gradient
+            self.scheduler.zerograd()
+            # --forward
+            if self.fp16_type in ['pytorch']:
+                with autocast(**self.runner_cfg['fp16_cfg']['autocast']):
+                    loss_total, seg_losses_log_dict = self(images, seg_targets)
+                self.grad_scaler.scale(loss_total).backward()
+            elif self.fp16_type in ['apex']:
+                loss_total, seg_losses_log_dict = self(images, seg_targets)
+                with amp.scale_loss(loss_total, self.optimizer, **self.runner_cfg['fp16_cfg']['scale_loss']) as scaled_loss_total:
+                    scaled_loss_total.backward()
+            # --perform back propagation
+            self.scheduler.step(self.grad_scaler)
+            # --logging training loss info
+            losses_log_dict = self.loggingtraininginfo(seg_losses_log_dict, losses_log_dict, init_losses_log_dict)
     '''test'''
     @torch.no_grad()
     def test(self, cur_epoch):
@@ -186,8 +243,11 @@ class BaseRunner():
             'best_score': self.best_score,
             'segmentor': self.segmentor.state_dict(),
             'task_id': self.runner_cfg['task_id'],
-            'grad_scaler': self.grad_scaler.state_dict(),
         })
+        if self.fp16_type in ['pytorch']:
+            state_dict.update({'grad_scaler': self.grad_scaler.state_dict()})
+        elif self.fp16_type in ['apex']:
+            state_dict.update({'amp': amp.state_dict()})
         return state_dict
     '''loggingtraininginfo'''
     def loggingtraininginfo(self, seg_losses_log_dict, losses_log_dict, init_losses_log_dict):
