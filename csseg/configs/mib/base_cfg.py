@@ -12,16 +12,20 @@ SEGMENTOR_CFG = {
         'out_indices': (3,),
         'norm_cfg': {'type': 'InPlaceABNSync', 'activation': 'leaky_relu', 'activation_param': 0.01},
         'act_cfg': None,
+        'shortcut_norm_cfg': {'type': 'InPlaceABNSync', 'activation': 'identity'},
+        'shortcut_act_cfg': {'type': 'LeakyReLU', 'inplace': True, 'negative_slope': 0.01},
         'pretrained': True,
+        'structure_type': 'resnet101inplaceabn',
     }, 
     'decoder_cfg': {
-        'type': 'MIBASPPHead',
+        'type': 'ASPPHead',
         'in_channels': 2048,
         'feats_channels': 256,
         'out_channels': 256,
         'dilations': (1, 6, 12, 18),
         'pooling_size': 32,
         'norm_cfg': {'type': 'InPlaceABNSync', 'activation': 'leaky_relu', 'activation_param': 0.01},
+        'act_cfg': None,
     },
     'losses_cfgs': {
         'segmentation_init': {
@@ -48,6 +52,6 @@ RUNNER_CFG = {
     'choose_best_segmentor_by_metric': 'mean_iou',
     'logfilepath': '',
     'num_total_classes': -1,
-    'random_seed': 42,
+    'fp16_cfg': {'type': 'pytorch', 'autocast': {}, 'grad_scaler': {}},
     'segmentor_cfg': SEGMENTOR_CFG,
 }

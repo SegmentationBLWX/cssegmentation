@@ -147,7 +147,7 @@ class BaseRunner():
         if self.cmd_args.local_rank == 0:
             self.logger_handle.info(f'Load Config From: {self.cmd_args.cfgfilepath}')
             self.logger_handle.info(f'Config Details: \n{self.runner_cfg}')
-        self.beforetrainactions()
+        self.actionsbeforetask()
         for cur_epoch in range(self.scheduler.cur_epoch+1, self.scheduler.max_epochs+1):
             if self.cmd_args.local_rank == 0:
                 self.logger_handle.info(f'Start to train {self.runner_cfg["algorithm"]} at Task {self.runner_cfg["task_id"]}, Epoch {cur_epoch}')
@@ -166,19 +166,29 @@ class BaseRunner():
                         symlink(ckpt_path, os.path.join(self.task_work_dir, 'best.pth'))
                         saveaspickle(results, os.path.join(self.task_work_dir, 'best.pkl'))
                     self.logger_handle.info(results)
-        self.aftertrainactions()
+        self.actionsaftertask()
         if self.cmd_args.local_rank == 0:
             best_results = loadpicklefile(os.path.join(self.task_work_dir, 'best.pkl'))
             self.logger_handle.info(f'Best Result at Task {self.runner_cfg["task_id"]}: \n{best_results}')
-    '''aftertrainactions'''
-    def aftertrainactions(self):
+    '''actionsbeforetask'''
+    def actionsbeforetask(self):
         pass
-    '''beforetrainactions'''
-    def beforetrainactions(self):
+    '''actionsaftertask'''
+    def actionsaftertask(self):
         pass
     '''call'''
-    def __call__(self):
-        raise NotImplementedError('not to be implemented')
+    def __call__(self, images, seg_targets):
+        # initialize
+        losses_cfgs = copy.deepcopy(self.losses_cfgs)
+        # feed to segmentor
+        outputs = self.segmentor(images)
+        # calculate segmentation losses
+        seg_losses_cfgs = copy.deepcopy(losses_cfgs['segmentation_cl']) if self.history_segmentor is not None else copy.deepcopy(losses_cfgs['segmentation_init'])
+        seg_total_loss, seg_losses_log_dict = self.segmentor.module.calculateseglosses(
+            seg_logits=outputs['seg_logits'], seg_targets=seg_targets, losses_cfgs=seg_losses_cfgs,
+        )
+        # return
+        return seg_total_loss, seg_losses_log_dict
     '''train'''
     def train(self, cur_epoch):
         # initialize
