@@ -45,22 +45,6 @@ class ASPPHead(nn.Module):
             BuildNormalization(placeholder=out_channels, norm_cfg=norm_cfg),
             BuildActivation(act_cfg),
         )
-        # reset parameters
-        if norm_cfg['type'] in ['ABN', 'InPlaceABN', 'InPlaceABNSync']:
-            self.resetparameters(self.parallel_bn.activation, self.parallel_bn.activation_param)
-    '''resetparameters'''
-    def resetparameters(self, nonlinearity, param=None):
-        gain = nn.init.calculate_gain(nonlinearity, param)
-        for module in self.modules():
-            if isinstance(module, nn.Conv2d):
-                nn.init.xavier_normal_(module.weight.data, gain)
-                if hasattr(module, 'bias') and module.bias is not None:
-                    nn.init.constant_(module.bias, 0)
-            elif isinstance(module, nn.BatchNorm2d):
-                if hasattr(module, 'weight') and module.weight is not None:
-                    nn.init.constant_(module.weight, 1)
-                if hasattr(module, 'bias') and module.bias is not None:
-                    nn.init.constant_(module.bias, 0)
     '''forward'''
     def forward(self, x):
         # feed to parallel convolutions
