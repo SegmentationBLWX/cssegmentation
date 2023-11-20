@@ -28,3 +28,4 @@ RUNNER_CFG.update({
     'work_dir': os.path.split(__file__)[-1].split('.')[0],
     'logfilepath': f"{os.path.split(__file__)[-1].split('.')[0]}/{os.path.split(__file__)[-1].split('.')[0]}.log",
 })
+RUNNER_CFG['segmentor_cfg']['losses_cfgs']['distillation']['scale_factor'] = 100
