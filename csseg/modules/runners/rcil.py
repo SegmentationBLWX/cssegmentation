@@ -11,7 +11,6 @@ import functools
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.distributed as dist
-from apex import amp
 from .mib import MIBRunner
 from .base import BaseRunner
 
