@@ -53,6 +53,6 @@ RUNNER_CFG = {
     'logfilepath': '',
     'num_total_classes': -1,
     'pseudolabeling_minimal_threshold': 0.001,
-    'fp16_cfg': {'type': 'apex', 'scale_loss': {}, 'initialize': {'opt_level': 'O1'}},
+    'fp16_cfg': {'type': 'pytorch', 'autocast': {}, 'grad_scaler': {}},
     'segmentor_cfg': SEGMENTOR_CFG,
 }
