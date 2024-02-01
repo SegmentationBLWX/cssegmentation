@@ -1,15 +1,15 @@
 '''
 Function:
-    Implementation of Logger
+    Implementation of LoggerHandles
 Author:
     Zhenchao Jin
 '''
-import os
 import time
+from .modulebuilder import BaseModuleBuilder
 
 
-'''Logger'''
-class Logger():
+'''LocalLoggerHandle'''
+class LocalLoggerHandle():
     def __init__(self, logfilepath):
         self.logfilepath = logfilepath
     '''log'''
@@ -32,3 +32,17 @@ class Logger():
     '''error'''
     def error(self, message, endwithnewline=True):
         self.log(message, 'ERROR', endwithnewline)
+
+
+'''LoggerHandleBuilder'''
+class LoggerHandleBuilder(BaseModuleBuilder):
+    REGISTERED_MODULES = {
+        'LocalLoggerHandle': LocalLoggerHandle,
+    }
+    '''build'''
+    def build(self, logger_handle_cfg):
+        return super().build(logger_handle_cfg)
+
+
+'''BuildLoggerHandle'''
+BuildLoggerHandle = LoggerHandleBuilder().build

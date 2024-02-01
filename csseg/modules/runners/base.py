@@ -19,7 +19,7 @@ from ..datasets import BuildDataset, SegmentationEvaluator
 from ..models import BuildSegmentor, BuildOptimizer, BuildScheduler
 from ..parallel import BuildDistributedDataloader, BuildDistributedModel
 from torch.distributed.algorithms.ddp_comm_hooks import default as comm_hooks
-from ..utils import Logger, touchdir, loadckpts, saveckpts, saveaspickle, symlink, loadpicklefile
+from ..utils import BuildLoggerHandle, touchdir, loadckpts, saveckpts, saveaspickle, symlink, loadpicklefile
 
 
 '''BaseRunner'''
@@ -45,7 +45,7 @@ class BaseRunner():
         touchdir(dirname=self.root_work_dir)
         touchdir(dirname=self.task_work_dir)
         # build logger handle
-        self.logger_handle = Logger(logfilepath=runner_cfg['logfilepath'])
+        self.logger_handle = BuildLoggerHandle(logger_handle_cfg=runner_cfg['logger_handle_cfg'])
         # build datasets
         dataset_cfg = runner_cfg['dataset_cfg']
         train_set = BuildDataset(mode='TRAIN', task_name=runner_cfg['task_name'], task_id=runner_cfg['task_id'], dataset_cfg=dataset_cfg) if mode == 'TRAIN' else None
@@ -250,9 +250,7 @@ class BaseRunner():
     def state(self):
         state_dict = self.scheduler.state()
         state_dict.update({
-            'best_score': self.best_score,
-            'segmentor': self.segmentor.state_dict(),
-            'task_id': self.runner_cfg['task_id'],
+            'best_score': self.best_score, 'segmentor': self.segmentor.state_dict(), 'task_id': self.runner_cfg['task_id'],
         })
         if self.fp16_type in ['pytorch']:
             state_dict.update({'grad_scaler': self.grad_scaler.state_dict()})

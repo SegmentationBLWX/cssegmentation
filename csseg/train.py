@@ -10,8 +10,7 @@ import torch
 import warnings
 import argparse
 import torch.distributed as dist
-from configs import BuildConfig
-from modules import BuildRunner
+from modules import BuildRunner, ConfigParser
 warnings.filterwarnings('ignore')
 
 
@@ -32,7 +31,8 @@ def parsecmdargs():
 class Trainer():
     def __init__(self, cmd_args):
         self.cmd_args = cmd_args
-        self.cfg = BuildConfig(cmd_args.cfgfilepath)[0]
+        config_parser = ConfigParser()
+        self.cfg, _ = config_parser(cmd_args.cfgfilepath)
     '''start'''
     def start(self):
         # initialize
