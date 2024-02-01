@@ -1,3 +1,4 @@
+dill
 pillow
 pandas
 opencv-python
