@@ -53,6 +53,6 @@ RUNNER_CFG = {
     'choose_best_segmentor_by_metric': 'mean_iou',
     'logger_handle_cfg': {'type': 'LocalLoggerHandle', 'logfilepath': ''},
     'num_total_classes': -1,
-    'fp16_cfg': {'type': 'pytorch', 'autocast': {}, 'grad_scaler': {}},
+    'fp16_cfg': {'type': 'apex', 'initialize': {'opt_level': 'O1'}, 'scale_loss': {}},
     'segmentor_cfg': SEGMENTOR_CFG,
 }
