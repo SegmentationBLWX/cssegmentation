@@ -26,5 +26,5 @@ RUNNER_CFG.update({
     'num_tasks': 2,
     'num_total_classes': 21,
     'work_dir': os.path.split(__file__)[-1].split('.')[0],
-    'logfilepath': f"{os.path.split(__file__)[-1].split('.')[0]}/{os.path.split(__file__)[-1].split('.')[0]}.log",
+    'logger_handle_cfg': {'type': 'LocalLoggerHandle', 'logfilepath': f"{os.path.split(__file__)[-1].split('.')[0]}/{os.path.split(__file__)[-1].split('.')[0]}.log"},
 })
